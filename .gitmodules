@@ -1,3 +1,6 @@
 [submodule "stereo_msckf"]
 	path = stereo_msckf
 	url = https://github.com/uoip/stereo_msckf.git
+[submodule "stero_msckf"]
+	path = stero_msckf
+	url = https://github.com/ngurnard/stero_msckf.git
