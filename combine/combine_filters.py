@@ -28,6 +28,12 @@ class load_data():
         msckf_quat = np.stack(msckf_data[:,3]) # x,y,z,w
         return msckf_data, msckf_timestamp, msckf_position, msckf_velocity, msckf_quat
 
+    def load_biases(self, dataset=1):
+        """Get bias estimates that were learned in the MSCKF Algorithm. These will be used as the true bias values"""
+        gyro_bias = np.load(os.path.join(self.data_path, "msckf_gyro_bias" + str(dataset) + ".npy" ), allow_pickle=True)
+        acc_bias = np.load(os.path.join(self.data_path, "msckf_acc_bias" + str(dataset) + ".npy" ), allow_pickle=True)
+        return gyro_bias, acc_bias
+
     def load_eskf(self, dataset=1):
         """Get estimate data for the eskf"""
         eskf_data = np.load(os.path.join(self.data_path, "eskf_data" + str(dataset) + ".npy"), allow_pickle=True) # each state timestep, position, velocity, quaternion
@@ -35,7 +41,33 @@ class load_data():
         eskf_position = np.stack(eskf_data[:,1]) # the np.stack() converts the array to arrays to 2d array to actually use
         eskf_velocity = np.stack(eskf_data[:,2])
         eskf_quat = np.stack(eskf_data[:,3]) # x,y,z,w
+
+        # Convert the reading from the filter world frame (first frame is the world frame) to the vicon world frame (position)
+        R = Rotation.from_quat(np.array([-0.153,-0.8273,-0.08215,0.5341])).as_matrix()
+        for iter in range(eskf_position.shape[0]):
+            eskf_position[iter,:,:] = (R @ eskf_position[iter,:,:].reshape(3,1)).reshape(3,1) + np.array([4.688,-1.786,0.783]).reshape(3,1)
+
         return eskf_data, eskf_timestamp, eskf_position, eskf_velocity, eskf_quat
+
+    def load_complementary(self, dataset = 1):
+        complementary_data = np.load(os.path.join(self.data_path, "complementary_data" + str(dataset) + ".npy"), allow_pickle=True) # each state timestep, position, velocity, quaternion
+        complementary_timestamp = complementary_data[:,0]
+        complementary_euler = np.stack(complementary_data[:,1:])
+
+        return complementary_data, complementary_timestamp, complementary_euler
+
+    def load_ukf(self, dataset=1):
+        """Get estimate data for the eskf"""
+        ukf_data = np.load(os.path.join(self.data_path, "ukf_data" + str(dataset) + ".npy"), allow_pickle=True) # each state timestep, position, velocity, quaternion
+        ukf_roll = ukf_data[0,:]
+        ukf_pitch = ukf_data[1,:]
+        ukf_yaw = ukf_data[2,:]
+        euler_angles = np.hstack((ukf_roll.reshape(-1,1), ukf_pitch.reshape(-1,1), ukf_yaw.reshape(-1,1)))
+
+        ukf_quat = Rotation.from_euler('xyz', euler_angles, degrees=False).as_quat()
+
+        _, gt_timestamp, _, _, _ = self.load_gt(dataset)
+        return ukf_data, gt_timestamp, ukf_quat
 
     def load_gt(self, dataset=1):
         """Get ground truth data for the specified dataset"""
@@ -65,7 +97,7 @@ if __name__ == "__main__":
 
     ### Define parameters
     dataset = 1
-    show_plots = True # specify if you want plots to be shown
+    # show_plots = True # specify if you want plots to be shown
     match_timesteps = True # if you want the plots to only display pts where the timestamps match
 
     ### Initlialize
@@ -74,12 +106,28 @@ if __name__ == "__main__":
     ### Get the data we need
     msckf_data, msckf_timestamp, msckf_position, msckf_velocity, msckf_quat = load_stuff.load_msckf(dataset)
     eskf_data, eskf_timestamp, eskf_position, eskf_velocity, eskf_quat = load_stuff.load_eskf(dataset)
+    # ukf_data, ukf_timestamp ,ukf_quat = load_stuff.load_ukf(dataset)
     gt_data, gt_timestamp, gt_position, gt_velocity, gt_quat = load_stuff.load_gt(dataset)
+    complementary_data, complementary_timestamp, complementary_euler = load_stuff.load_complementary(dataset)
 
     # Convert quaternions to rpy
     msckf_rpy = Rotation.from_quat(msckf_quat).as_euler('XYZ', degrees=True)
     eskf_rpy = Rotation.from_quat(eskf_quat).as_euler('XYZ', degrees=True)
     gt_rpy = Rotation.from_quat(gt_quat).as_euler('XYZ', degrees=True)
+    complementary_rpy = complementary_euler
+
+    # Convert the reading from the filter world frame (first frame is the world frame) to the vicon world frame (rotation)
+    R = Rotation.from_quat(np.array([-0.153,-0.8273,-0.08215,0.5341])).as_matrix() # from world frame to vicon world frame
+    mat = Rotation.from_quat(eskf_quat).as_matrix()
+    for iter in range(mat.shape[0]):
+        mat[iter,:,:] = R @ mat[iter,:,:]
+        eskf_rpy[iter,:] = Rotation.from_matrix(mat[iter,:,:]).as_euler('XYZ', degrees=True)
+    # ukf_rpy = Rotation.from_quat(ukf_quat).as_euler('XYZ', degrees=True)
+    # R = Rotation.from_quat(np.array([-0.153,-0.8273,-0.08215,0.5341])).as_matrix() # from world frame to vicon world frame
+    # mat = Rotation.from_quat(ukf_quat).as_matrix()
+    # for iter in range(mat.shape[0]):
+    #     mat[iter,:,:] = R @ mat[iter,:,:]
+    #     ukf_rpy[iter,:] = Rotation.from_matrix(mat[iter,:,:]).as_euler('XYZ', degrees=True)
 
     if (match_timesteps == False):
         ### Plot the data as is
@@ -112,22 +160,37 @@ if __name__ == "__main__":
         plt.legend()
         plt.show()
     else:
-        # msckf_idx = np.where(msckf_timestamp == gt_timestamp) # none of these match the gt??
-        # eskf_idx = np.where(eskf_timestamp == gt_timestamp)
-        # print(msckf_timestamp)
-        # print(gt_timestamp)
-        # print(eskf_timestamp)
-        # print(msckf_idx, eskf_timestamp.shape)
-
+        
+        ## Match timesteps for plotting
+        # Ground truth with MSCKF
         gt_idx_msckf = []
         for i in range(len(msckf_timestamp)):
             gt_idx_msckf.append(np.argmin(np.abs(gt_timestamp - msckf_timestamp[i])))
-
+        # Ground Truth with ESKF
         gt_idx_eskf = []
         for i in range(len(eskf_timestamp)):
             gt_idx_eskf.append(np.argmin(np.abs(gt_timestamp - eskf_timestamp[i])))
+        # ESKF with MSCKF
+        match_idx = []
+        for i in range(len(msckf_timestamp)):
+            match_idx.append(np.argmin(np.abs(eskf_timestamp - msckf_timestamp[i])))
+            # print(match_idx)
+        # Ground truth and complementary
+        gt_idx_complementary = []
+        for i in range(len(complementary_timestamp)):
+            gt_idx_complementary.append(np.argmin(np.abs(gt_timestamp - complementary_timestamp[i])))
 
-        print(len(gt_idx_msckf), len(gt_timestamp[gt_idx_msckf]))
+        # print(len(gt_idx_msckf), len(gt_timestamp[gt_idx_msckf]))
+
+        # Get the simple average of the MSCKF and ESKF output for when the timestamps match
+        new_position = np.zeros_like(msckf_position)
+        new_rpy = np.zeros_like(msckf_rpy)
+        new_position[:,0] = ((msckf_position[:, 0].reshape(2862,1) + eskf_position[match_idx][:, 0])/2).reshape(2862,)
+        new_position[:,1] = ((msckf_position[:, 1].reshape(2862,1) + eskf_position[match_idx][:, 1])/2).reshape(2862,)
+        new_position[:,2] = ((msckf_position[:, 2].reshape(2862,1) + eskf_position[match_idx][:, 2])/2).reshape(2862,)
+        new_rpy[:,0] = ((msckf_rpy[:, 0].reshape(2862,) + eskf_rpy[match_idx][:, 0])/2).reshape(2862,)
+        new_rpy[:,1] = ((msckf_rpy[:, 1].reshape(2862,) + eskf_rpy[match_idx][:, 1])/2).reshape(2862,)
+        new_rpy[:,2] = ((msckf_rpy[:, 2].reshape(2862,) + eskf_rpy[match_idx][:, 2])/2).reshape(2862,)
 
         plt.figure(1)
         plt.plot(msckf_position[:, 0], label="msckf x-pos estimate")
@@ -157,21 +220,33 @@ if __name__ == "__main__":
         plt.plot(msckf_rpy[:, 0], label="msckf roll estimate")
         plt.plot(msckf_rpy[:, 1], label="msckf pitch estimate")
         plt.plot(msckf_rpy[:, 2], label="msckf yaw estimate")
-        plt.plot(gt_rpy[gt_idx_msckf][:, 0] - gt_rpy[gt_idx_msckf][0,0], label="gt roll", linestyle='dashdot')
-        plt.plot(gt_rpy[gt_idx_msckf][:, 1] - gt_rpy[gt_idx_msckf][0,1], label="gt pitch", linestyle='dashdot')
-        plt.plot(gt_rpy[gt_idx_msckf][:, 2] - gt_rpy[gt_idx_msckf][0,2], label="gt yaw", linestyle='dashdot', color='k')
+        plt.plot(gt_rpy[gt_idx_msckf][:, 0], label="gt roll", linestyle='dashdot')
+        plt.plot(gt_rpy[gt_idx_msckf][:, 1], label="gt pitch", linestyle='dashdot')
+        plt.plot(gt_rpy[gt_idx_msckf][:, 2], label="gt yaw", linestyle='dashdot', color='k')
         plt.xlabel("timestamp")
         plt.ylabel("angle in degrees")
         plt.title("MSCKF Orientation Estimate")
         plt.legend()
 
+        # plt.figure(4)
+        # plt.plot(eskf_position[:, 0], label="eskf x-pos estimate")
+        # plt.plot(eskf_position[:, 1], label="eskf y-pos estimate")
+        # plt.plot(eskf_position[:, 2], label="eskf z-pos estimate")
+        # plt.plot(gt_position[gt_idx_eskf][:, 0] - gt_position[gt_idx_eskf][0,0], label="gt x-pos", linestyle='dashdot')
+        # plt.plot(gt_position[gt_idx_eskf][:, 1] - gt_position[gt_idx_eskf][0,1], label="gt y-pos", linestyle='dashdot')
+        # plt.plot(gt_position[gt_idx_eskf][:, 2] - gt_position[gt_idx_eskf][0,2], label="gt z-pos", linestyle='dashdot', color='k')
+        # plt.xlabel("timestamp")
+        # plt.ylabel("position in meters")
+        # plt.title("ESKF Position Estimate")
+        # plt.legend()
+
         plt.figure(4)
         plt.plot(eskf_position[:, 0], label="eskf x-pos estimate")
-        plt.plot(eskf_position[:, 1], label="eskf y-pos estimate")
-        plt.plot(eskf_position[:, 2], label="eskf z-pos estimate")
-        plt.plot(gt_position[gt_idx_eskf][:, 0] - gt_position[gt_idx_eskf][0,0], label="gt x-pos", linestyle='dashdot')
-        plt.plot(gt_position[gt_idx_eskf][:, 1] - gt_position[gt_idx_eskf][0,1], label="gt y-pos", linestyle='dashdot')
-        plt.plot(gt_position[gt_idx_eskf][:, 2] - gt_position[gt_idx_eskf][0,2], label="gt z-pos", linestyle='dashdot', color='k')
+        # plt.plot(eskf_position[:, 1], label="eskf y-pos estimate")
+        # plt.plot(eskf_position[:, 2], label="eskf z-pos estimate")
+        plt.plot(gt_position[gt_idx_eskf][:, 0], label="gt x-pos", linestyle='dashdot')
+        # plt.plot(gt_position[gt_idx_eskf][:, 1], label="gt y-pos", linestyle='dashdot')
+        # plt.plot(gt_position[gt_idx_eskf][:, 2], label="gt z-pos", linestyle='dashdot', color='k')
         plt.xlabel("timestamp")
         plt.ylabel("position in meters")
         plt.title("ESKF Position Estimate")
@@ -193,12 +268,34 @@ if __name__ == "__main__":
         plt.plot(eskf_rpy[:, 0], label="eskf roll estimate")
         plt.plot(eskf_rpy[:, 1], label="eskf pitch estimate")
         plt.plot(eskf_rpy[:, 2], label="eskf yaw estimate")
-        plt.plot(gt_rpy[gt_idx_eskf][:, 0] - gt_rpy[gt_idx_eskf][0,0], label="gt roll", linestyle='dashdot')
-        plt.plot(gt_rpy[gt_idx_eskf][:, 1] - gt_rpy[gt_idx_eskf][0,1], label="gt pitch", linestyle='dashdot')
-        plt.plot(gt_rpy[gt_idx_eskf][:, 2] - gt_rpy[gt_idx_eskf][0,2], label="gt yaw", linestyle='dashdot', color='k')
+        plt.plot(gt_rpy[gt_idx_eskf][:, 0], label="gt roll", linestyle='dashdot')
+        plt.plot(gt_rpy[gt_idx_eskf][:, 1], label="gt pitch", linestyle='dashdot')
+        plt.plot(gt_rpy[gt_idx_eskf][:, 2], label="gt yaw", linestyle='dashdot', color='k')
         plt.xlabel("timestamp")
         plt.ylabel("angle in degrees")
         plt.title("ESKF Orientation Estimate")
+        plt.legend()
+
+        plt.figure(7)
+        plt.plot(new_position[:, 1], label="average y-pos estimate", linestyle='dashed', color='b')
+        plt.plot(eskf_position[match_idx][:, 1], label="eskf (baseline) y-pos", linestyle='solid', color='g')
+        plt.plot(gt_position[gt_idx_msckf][:, 1], label="gt y-pos", linestyle='dashdot', color='k')
+        plt.plot(msckf_position[:, 1], label="msckf y-pos estimate", linestyle='solid', color='r')
+        plt.xlabel("timestamp")
+        plt.ylabel("y position in meters")
+        plt.title("Ensemble filter estimates for y position - Simple Average")
+        plt.legend()
+
+        plt.figure(8)
+        plt.plot(complementary_rpy[:,0], label = 'comp_yaw')
+        plt.plot(complementary_rpy[:,1], label = 'comp_pitch')
+        plt.plot(complementary_rpy[:,2], label = 'comp_roll')
+        plt.plot(gt_rpy[gt_idx_complementary][:, 0], label="gt_yaw", linestyle='dashdot')
+        plt.plot(gt_rpy[gt_idx_complementary][:, 1], label="gt_pitch", linestyle='dashdot')
+        plt.plot(gt_rpy[gt_idx_complementary][:, 2], label="gt_roll", linestyle='dashdot', color='k')
+        plt.xlabel("timestamp")
+        plt.ylabel("angle in degrees")
+        plt.title("Complementary Orientation Estimate")
         plt.legend()
 
         plt.show()
