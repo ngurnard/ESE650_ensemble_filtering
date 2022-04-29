@@ -206,57 +206,57 @@ if __name__ == "__main__":
         new_rpy[:,1] = ((msckf_rpy[:, 1].reshape(2862,) + eskf_rpy[match_idx][:, 1])/2).reshape(2862,)
         new_rpy[:,2] = ((msckf_rpy[:, 2].reshape(2862,) + eskf_rpy[match_idx][:, 2])/2).reshape(2862,)
 
-        # plt.figure(1)
-        # # plt.plot(new_position[:, 0], label="new x-pos estimate")
-        # plt.plot(new_position[:, 1], label="average y-pos estimate")
-        # # plt.plot(new_position[:, 2], label="new z-pos estimate")
-        # # plt.plot(gt_position[gt_idx_msckf][:, 0] - gt_position[gt_idx_msckf][0,0], label="gt x-pos", linestyle='dashdot')
-        # # plt.plot(gt_position[gt_idx_msckf][:, 1] - gt_position[gt_idx_msckf][0,1], label="gt y-pos", linestyle='dashdot')
-        # # plt.plot(gt_position[gt_idx_msckf][:, 2] - gt_position[gt_idx_msckf][0,2], label="gt z-pos", linestyle='dashdot', color='k')
+        plt.figure(1)
+        # plt.plot(new_position[:, 0], label="new x-pos estimate")
+        plt.plot(new_position[:, 1], label="average y-pos estimate", linestyle='dashed', color='b')
+        # plt.plot(new_position[:, 2], label="new z-pos estimate")
+        # plt.plot(gt_position[gt_idx_msckf][:, 0] - gt_position[gt_idx_msckf][0,0], label="gt x-pos", linestyle='dashdot')
+        # plt.plot(gt_position[gt_idx_msckf][:, 1] - gt_position[gt_idx_msckf][0,1], label="gt y-pos", linestyle='dashdot')
+        # plt.plot(gt_position[gt_idx_msckf][:, 2] - gt_position[gt_idx_msckf][0,2], label="gt z-pos", linestyle='dashdot', color='k')
 
-        # # plt.plot(eskf_position[match_idx][:, 0], label="eskf x-pos", linestyle='dashdot')
-        # plt.plot(eskf_position[match_idx][:, 1], label="eskf (baseline) y-pos", linestyle='dashdot')
-        # # plt.plot(eskf_position[match_idx][:, 2], label="eskf z-pos", linestyle='dashdot', color='k')
+        # plt.plot(eskf_position[match_idx][:, 0], label="eskf x-pos", linestyle='dashdot')
+        plt.plot(eskf_position[match_idx][:, 1], label="eskf (baseline) y-pos", linestyle='solid', color='g')
+        # plt.plot(eskf_position[match_idx][:, 2], label="eskf z-pos", linestyle='dashdot', color='k')
 
-        # # plt.plot(gt_position[gt_idx_msckf][:, 0], label="gt x-pos", linestyle='dashdot')
-        # plt.plot(gt_position[gt_idx_msckf][:, 1], label="gt y-pos", linestyle='dashdot')
-        # # plt.plot(gt_position[gt_idx_msckf][:, 2], label="gt z-pos", linestyle='dashdot')
+        # plt.plot(gt_position[gt_idx_msckf][:, 0], label="gt x-pos", linestyle='dashdot')
+        plt.plot(gt_position[gt_idx_msckf][:, 1], label="gt y-pos", linestyle='dashdot', color='k')
+        # plt.plot(gt_position[gt_idx_msckf][:, 2], label="gt z-pos", linestyle='dashdot')
 
-        # # plt.plot(msckf_position[:, 0], label="msckf x-pos estimate")
-        # plt.plot(msckf_position[:, 1], label="msckf y-pos estimate")
-        # # plt.plot(msckf_position[:, 2], label="msckf z-pos estimate")
-
-        # plt.xlabel("timestamp")
-        # plt.ylabel("y position in meters")
-        # plt.title("Ensemble filter estimates for y position")
-        # plt.legend()
-
-
-
-        plt.figure(2)
-        # plt.plot(new_rpy[:, 0], label="new roll estimate")
-        # plt.plot(new_rpy[:, 1], label="average pitch estimate")
-        plt.plot(new_rpy[:, 2], label="average yaw estimate")
-        # plt.plot(gt_rpy[gt_idx_msckf][:, 0] - gt_rpy[gt_idx_msckf][0,0], label="gt roll", linestyle='dashdot')
-        # plt.plot(gt_rpy[gt_idx_msckf][:, 1] - gt_rpy[gt_idx_msckf][0,1], label="gt pitch", linestyle='dashdot')
-        # plt.plot(gt_rpy[gt_idx_msckf][:, 2] - gt_rpy[gt_idx_msckf][0,2], label="gt yaw", linestyle='dashdot', color='k')
-
-        # plt.plot(eskf_rpy[match_idx][:, 0], label="eskf roll", linestyle='dashdot')
-        # plt.plot(eskf_rpy[match_idx][:, 1], label="eskf (baseline) pitch", linestyle='dashdot')
-        plt.plot(eskf_rpy[match_idx][:, 2], label="eskf (baseline) yaw", linestyle='dashdot', color='k')
-
-        # plt.plot(gt_rpy[gt_idx_msckf][:, 0], label="gt roll", linestyle='dashdot')
-        # plt.plot(gt_rpy[gt_idx_msckf][:, 1], label="gt pitch", linestyle='dashdot')
-        plt.plot(gt_rpy[gt_idx_msckf][:, 2], label="gt yaw", linestyle='dashdot')
-
-        # plt.plot(msckf_rpy[:, 0], label="msckf roll estimate")
-        # plt.plot(msckf_rpy[:, 1], label="msckf pitch estimate")
-        plt.plot(msckf_rpy[:, 2], label="msckf yaw estimate")
+        # plt.plot(msckf_position[:, 0], label="msckf x-pos estimate")
+        plt.plot(msckf_position[:, 1], label="msckf y-pos estimate", linestyle='solid', color='r')
+        # plt.plot(msckf_position[:, 2], label="msckf z-pos estimate")
 
         plt.xlabel("timestamp")
-        plt.ylabel("yaw in degrees")
-        plt.title("Ensemble filter estimates for yaw")
+        plt.ylabel("y position in meters")
+        plt.title("Ensemble filter estimates for y position")
         plt.legend()
+
+
+
+        # plt.figure(2)
+        # # plt.plot(new_rpy[:, 0], label="new roll estimate")
+        # # plt.plot(new_rpy[:, 1], label="average pitch estimate")
+        # plt.plot(new_rpy[:, 2], label="average yaw estimate", linestyle='dashed', color='b')
+        # # plt.plot(gt_rpy[gt_idx_msckf][:, 0] - gt_rpy[gt_idx_msckf][0,0], label="gt roll", linestyle='dashdot')
+        # # plt.plot(gt_rpy[gt_idx_msckf][:, 1] - gt_rpy[gt_idx_msckf][0,1], label="gt pitch", linestyle='dashdot')
+        # # plt.plot(gt_rpy[gt_idx_msckf][:, 2] - gt_rpy[gt_idx_msckf][0,2], label="gt yaw", linestyle='dashdot', color='k')
+
+        # # plt.plot(eskf_rpy[match_idx][:, 0], label="eskf roll", linestyle='dashdot')
+        # # plt.plot(eskf_rpy[match_idx][:, 1], label="eskf (baseline) pitch", linestyle='dashdot')
+        # plt.plot(eskf_rpy[match_idx][:, 2], label="eskf (baseline) yaw", linestyle='solid', color='g')
+
+        # # plt.plot(gt_rpy[gt_idx_msckf][:, 0], label="gt roll", linestyle='dashdot')
+        # # plt.plot(gt_rpy[gt_idx_msckf][:, 1], label="gt pitch", linestyle='dashdot')
+        # plt.plot(gt_rpy[gt_idx_msckf][:, 2], label="gt yaw", linestyle='dashdot', color='k')
+
+        # # plt.plot(msckf_rpy[:, 0], label="msckf roll estimate")
+        # # plt.plot(msckf_rpy[:, 1], label="msckf pitch estimate")
+        # plt.plot(msckf_rpy[:, 2], label="msckf yaw estimate", linestyle='solid', color='r')
+
+        # plt.xlabel("timestamp")
+        # plt.ylabel("yaw in degrees")
+        # plt.title("Ensemble filter estimates for yaw")
+        # plt.legend()
 
 
 
