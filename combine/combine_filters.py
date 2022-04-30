@@ -5,6 +5,10 @@ from scipy.spatial.transform import Rotation
 import pandas as pd
 import os
 
+from torch import gt
+
+from perceptron import *
+
 class load_data():
     """
     A class used to load in data that can be used accross any file we make.
@@ -20,7 +24,7 @@ class load_data():
         self.gt_path = path_euroc # the ground truth path
 
     def load_msckf(self, dataset=1):
-        """Get estimate data for the msckf"""
+        """Get estimate data for the msckf - position and orientation"""
         msckf_data = np.load(os.path.join(self.data_path, "msckf_data" + str(dataset) + ".npy" ), allow_pickle=True)
         msckf_timestamp = msckf_data[:,0] # for the 0th dataset
         msckf_position = np.stack(msckf_data[:,1]) # the np.stack() converts the array to arrays to 2d array to actually use
@@ -28,28 +32,30 @@ class load_data():
         msckf_quat = np.stack(msckf_data[:,3]) # x,y,z,w
         return msckf_data, msckf_timestamp, msckf_position, msckf_velocity, msckf_quat
 
-    def load_biases(self, dataset=1):
-        """Get bias estimates that were learned in the MSCKF Algorithm. These will be used as the true bias values"""
-        gyro_bias = np.load(os.path.join(self.data_path, "msckf_gyro_bias" + str(dataset) + ".npy" ), allow_pickle=True)
-        acc_bias = np.load(os.path.join(self.data_path, "msckf_acc_bias" + str(dataset) + ".npy" ), allow_pickle=True)
-        return gyro_bias, acc_bias
+    # def load_biases(self, dataset=1):
+    #     """Get bias estimates that were learned in the MSCKF Algorithm. These will be used as the true bias values"""
+    #     gyro_bias = np.load(os.path.join(self.data_path, "msckf_gyro_bias" + str(dataset) + ".npy" ), allow_pickle=True)
+    #     acc_bias = np.load(os.path.join(self.data_path, "msckf_acc_bias" + str(dataset) + ".npy" ), allow_pickle=True)
+    #     return gyro_bias, acc_bias
 
     def load_eskf(self, dataset=1):
-        """Get estimate data for the eskf"""
+        """Get estimate data for the eskf - position and orientation"""
         eskf_data = np.load(os.path.join(self.data_path, "eskf_data" + str(dataset) + ".npy"), allow_pickle=True) # each state timestep, position, velocity, quaternion
         eskf_timestamp = eskf_data[:,0] # for the 0th dataset
-        eskf_position = np.stack(eskf_data[:,1]) # the np.stack() converts the array to arrays to 2d array to actually use
-        eskf_velocity = np.stack(eskf_data[:,2])
+        eskf_position = np.stack(eskf_data[:,1]).reshape(-1,3) # the np.stack() converts the array to arrays to 2d array to actually use
+        eskf_velocity = np.stack(eskf_data[:,2]).reshape(-1,3)
         eskf_quat = np.stack(eskf_data[:,3]) # x,y,z,w
+        # print("TESTING ESKF: ", eskf_position.shape, eskf_velocity.shape, eskf_quat.shape)
 
         # Convert the reading from the filter world frame (first frame is the world frame) to the vicon world frame (position)
-        R = Rotation.from_quat(np.array([-0.153,-0.8273,-0.08215,0.5341])).as_matrix()
+        R = Rotation.from_quat(np.array([-0.153,-0.8273,-0.08215,0.5341])).as_matrix() # this is the first quaternion from the GROUND TRUTH DATA
         for iter in range(eskf_position.shape[0]):
-            eskf_position[iter,:,:] = (R @ eskf_position[iter,:,:].reshape(3,1)).reshape(3,1) + np.array([4.688,-1.786,0.783]).reshape(3,1)
+            eskf_position[iter,:] = (R @ eskf_position[iter,:].transpose()) + np.array([4.688,-1.786,0.783]).transpose()
 
         return eskf_data, eskf_timestamp, eskf_position, eskf_velocity, eskf_quat
 
     def load_complementary(self, dataset = 1):
+        """Get estimate data for the complementary filter - orientation only"""
         complementary_data = np.load(os.path.join(self.data_path, "complementary_data" + str(dataset) + ".npy"), allow_pickle=True) # each state timestep, position, velocity, quaternion
         complementary_timestamp = complementary_data[:,0]
         complementary_euler = np.stack(complementary_data[:,1:])
@@ -57,7 +63,7 @@ class load_data():
         return complementary_data, complementary_timestamp, complementary_euler
 
     def load_ukf(self, dataset=1):
-        """Get estimate data for the eskf"""
+        """Get estimate data for the ukf - orientation only (for now)"""
         ukf_data = np.load(os.path.join(self.data_path, "ukf_data" + str(dataset) + ".npy"), allow_pickle=True) # each state timestep, position, velocity, quaternion
         ukf_roll = ukf_data[0,:]
         ukf_pitch = ukf_data[1,:]
@@ -97,8 +103,9 @@ if __name__ == "__main__":
 
     ### Define parameters
     dataset = 1
-    # show_plots = True # specify if you want plots to be shown
+    show_plots = True # specify if you want plots to be shown
     match_timesteps = True # if you want the plots to only display pts where the timestamps match
+    perceptron = True # if you want to combine the outputs with a perceptron
 
     ### Initlialize
     load_stuff = load_data(path_euroc="./data/euroc_mav_dataset", path_estimate="./data/filter_outputs") # initilize the load_data object
@@ -129,7 +136,47 @@ if __name__ == "__main__":
     #     mat[iter,:,:] = R @ mat[iter,:,:]
     #     ukf_rpy[iter,:] = Rotation.from_matrix(mat[iter,:,:]).as_euler('XYZ', degrees=True)
 
-    if (match_timesteps == False):
+    
+    ## Perceptron Code -----------------------------------------------------------------
+    if (perceptron == True):
+
+        ## Match timesteps for plotting
+        # Keep the following for reference!
+        """
+        # Ground truth with MSCKF
+        gt_idx1 = []
+        for i in range(len(msckf_timestamp)):
+            gt_idx1.append(np.argmin(np.abs(gt_timestamp - msckf_timestamp[i]))) # match the INDICES of where the timestamps match
+        gt_idx1 = np.array(gt_idx1)
+        # print("gt_idx1: ", gt_idx1.shape, gt_idx1)
+        gt_timestamp2 = gt_timestamp[gt_idx1]
+        # Output of last with ESKF
+        gt_idx2 = []
+        for i in range(len(eskf_timestamp)):
+            gt_idx2.append(np.argmin(np.abs(gt_timestamp - eskf_timestamp[i])))
+        gt_idx2 = np.array(gt_idx2)
+        # print("gt_idx2: ", gt_idx2.shape, gt_idx2)
+        idx = np.intersect1d(gt_idx1, gt_idx2) # these are the indices in which the timestamps match for all 3 sets
+        # print("idx: ", idx)
+        """
+
+        # Match the timesteps of the ESKF with MSCKF in order to make a perceptron of the positions
+        match_idx = []
+        for i in range(len(msckf_timestamp)):
+            match_idx.append(np.argmin(np.abs(eskf_timestamp - msckf_timestamp[i])))
+        # print("match_idx: ", match_idx)
+        
+        # Make a numpy array of all of the filters x,y,z positions
+        x_pos_array = np.vstack((msckf_position[:, 0], eskf_position[match_idx][:, 0])).transpose()
+        y_pos_array = np.vstack((msckf_position[:, 1], eskf_position[match_idx][:, 1])).transpose()
+        z_pos_array = np.vstack((msckf_position[:, 2], eskf_position[match_idx][:, 2])).transpose()
+        print("TESTING 2: ", x_pos_array.shape, y_pos_array.shape, z_pos_array.shape)
+
+        # Pass it into the perceptron!
+        pos_perceptron(x_pos_array, y_pos_array, z_pos_array)
+
+    ## PLOTTING CODE -------------------------------------------------------------------
+    if (match_timesteps == False and show_plots == True and perceptron == False):
         ### Plot the data as is
         plt.figure(1)
         plt.plot(msckf_position[:, 0], label="msckf x-pos estimate", color="r")
@@ -159,7 +206,8 @@ if __name__ == "__main__":
         plt.title("Ground Truth Estimate")
         plt.legend()
         plt.show()
-    else:
+
+    elif (show_plots == True and match_timesteps == True and perceptron == False):
         
         ## Match timesteps for plotting
         # Ground truth with MSCKF
@@ -175,6 +223,11 @@ if __name__ == "__main__":
         for i in range(len(msckf_timestamp)):
             match_idx.append(np.argmin(np.abs(eskf_timestamp - msckf_timestamp[i])))
             # print(match_idx)
+        # Complementary with MSCKF ( this is orientation only)
+        match_idx2 = []
+        for i in range(len(msckf_timestamp)):
+            match_idx2.append(np.argmin(np.abs(complementary_timestamp - msckf_timestamp[i])))
+            # print(match_idx)
         # Ground truth and complementary
         gt_idx_complementary = []
         for i in range(len(complementary_timestamp)):
@@ -185,12 +238,12 @@ if __name__ == "__main__":
         # Get the simple average of the MSCKF and ESKF output for when the timestamps match
         new_position = np.zeros_like(msckf_position)
         new_rpy = np.zeros_like(msckf_rpy)
-        new_position[:,0] = ((msckf_position[:, 0].reshape(2862,1) + eskf_position[match_idx][:, 0])/2).reshape(2862,)
-        new_position[:,1] = ((msckf_position[:, 1].reshape(2862,1) + eskf_position[match_idx][:, 1])/2).reshape(2862,)
-        new_position[:,2] = ((msckf_position[:, 2].reshape(2862,1) + eskf_position[match_idx][:, 2])/2).reshape(2862,)
-        new_rpy[:,0] = ((msckf_rpy[:, 0].reshape(2862,) + eskf_rpy[match_idx][:, 0])/2).reshape(2862,)
-        new_rpy[:,1] = ((msckf_rpy[:, 1].reshape(2862,) + eskf_rpy[match_idx][:, 1])/2).reshape(2862,)
-        new_rpy[:,2] = ((msckf_rpy[:, 2].reshape(2862,) + eskf_rpy[match_idx][:, 2])/2).reshape(2862,)
+        new_position[:,0] = ((msckf_position[:, 0] + eskf_position[match_idx][:, 0])/2).reshape(-1,) # divide by 2 for the simple average
+        new_position[:,1] = ((msckf_position[:, 1] + eskf_position[match_idx][:, 1])/2).reshape(-1,)
+        new_position[:,2] = ((msckf_position[:, 2] + eskf_position[match_idx][:, 2])/2).reshape(-1,)
+        new_rpy[:,0] = ((msckf_rpy[:, 0] + eskf_rpy[match_idx][:, 0])/2)
+        new_rpy[:,1] = ((msckf_rpy[:, 1] + eskf_rpy[match_idx][:, 1])/2)
+        new_rpy[:,2] = ((msckf_rpy[:, 2] + eskf_rpy[match_idx][:, 2])/2)
 
         plt.figure(1)
         plt.plot(msckf_position[:, 0], label="msckf x-pos estimate")
@@ -242,11 +295,11 @@ if __name__ == "__main__":
 
         plt.figure(4)
         plt.plot(eskf_position[:, 0], label="eskf x-pos estimate")
-        # plt.plot(eskf_position[:, 1], label="eskf y-pos estimate")
-        # plt.plot(eskf_position[:, 2], label="eskf z-pos estimate")
+        plt.plot(eskf_position[:, 1], label="eskf y-pos estimate")
+        plt.plot(eskf_position[:, 2], label="eskf z-pos estimate")
         plt.plot(gt_position[gt_idx_eskf][:, 0], label="gt x-pos", linestyle='dashdot')
-        # plt.plot(gt_position[gt_idx_eskf][:, 1], label="gt y-pos", linestyle='dashdot')
-        # plt.plot(gt_position[gt_idx_eskf][:, 2], label="gt z-pos", linestyle='dashdot', color='k')
+        plt.plot(gt_position[gt_idx_eskf][:, 1], label="gt y-pos", linestyle='dashdot')
+        plt.plot(gt_position[gt_idx_eskf][:, 2], label="gt z-pos", linestyle='dashdot', color='k')
         plt.xlabel("timestamp")
         plt.ylabel("position in meters")
         plt.title("ESKF Position Estimate")
@@ -276,6 +329,7 @@ if __name__ == "__main__":
         plt.title("ESKF Orientation Estimate")
         plt.legend()
 
+        # Simple Average Plot
         plt.figure(7)
         plt.plot(new_position[:, 1], label="average y-pos estimate", linestyle='dashed', color='b')
         plt.plot(eskf_position[match_idx][:, 1], label="eskf (baseline) y-pos", linestyle='solid', color='g')
