@@ -22,7 +22,7 @@ class load_data():
     def load_msckf(self, dataset=1):
         """Get estimate data for the msckf"""
         msckf_data = np.load(os.path.join(self.data_path, "msckf_data" + str(dataset) + ".npy" ), allow_pickle=True)
-        print(msckf_data.shape)
+        # print(msckf_data.shape)
         msckf_timestamp = msckf_data[:,0] # for the 0th dataset
         msckf_position = np.stack(msckf_data[:,1]) # the np.stack() converts the array to arrays to 2d array to actually use
         msckf_position = msckf_position + np.array([4.688,-1.786,0.783]).reshape(1,3)
@@ -63,7 +63,7 @@ class load_data():
         ukf_yaw = ukf_data[2,:]
         euler_angles = np.hstack((ukf_roll.reshape(-1,1), ukf_pitch.reshape(-1,1), ukf_yaw.reshape(-1,1)))
 
-        ukf_quat = Rotation.from_euler('xyz', euler_angles, degrees=False).as_quat()
+        ukf_quat = Rotation.from_euler('XYZ', euler_angles, degrees=True).as_quat()
 
         _, gt_timestamp, _, _, _ = self.load_gt(dataset)
         return ukf_data, gt_timestamp ,ukf_quat
@@ -131,6 +131,8 @@ if __name__ == "__main__":
     
     ukf_rpy = Rotation.from_quat(ukf_quat).as_euler('XYZ', degrees=True)
     R = Rotation.from_quat(np.array([-0.153,-0.8273,-0.08215,0.5341])).as_matrix()
+    # R = Rotation.from_quat(np.array([0,0,0,1])).as_matrix()
+
     mat = Rotation.from_quat(ukf_quat).as_matrix()
     for iter in range(mat.shape[0]):
         mat[iter,:,:] = R @ mat[iter,:,:]
@@ -206,30 +208,30 @@ if __name__ == "__main__":
         new_rpy[:,1] = ((msckf_rpy[:, 1].reshape(2862,) + eskf_rpy[match_idx][:, 1])/2).reshape(2862,)
         new_rpy[:,2] = ((msckf_rpy[:, 2].reshape(2862,) + eskf_rpy[match_idx][:, 2])/2).reshape(2862,)
 
-        plt.figure(1)
-        # plt.plot(new_position[:, 0], label="new x-pos estimate")
-        plt.plot(new_position[:, 1], label="average y-pos estimate", linestyle='dashed', color='b')
-        # plt.plot(new_position[:, 2], label="new z-pos estimate")
-        # plt.plot(gt_position[gt_idx_msckf][:, 0] - gt_position[gt_idx_msckf][0,0], label="gt x-pos", linestyle='dashdot')
-        # plt.plot(gt_position[gt_idx_msckf][:, 1] - gt_position[gt_idx_msckf][0,1], label="gt y-pos", linestyle='dashdot')
-        # plt.plot(gt_position[gt_idx_msckf][:, 2] - gt_position[gt_idx_msckf][0,2], label="gt z-pos", linestyle='dashdot', color='k')
+        # plt.figure(1)
+        # # plt.plot(new_position[:, 0], label="new x-pos estimate")
+        # plt.plot(new_position[:, 1], label="average y-pos estimate", linestyle='dashed', color='b')
+        # # plt.plot(new_position[:, 2], label="new z-pos estimate")
+        # # plt.plot(gt_position[gt_idx_msckf][:, 0] - gt_position[gt_idx_msckf][0,0], label="gt x-pos", linestyle='dashdot')
+        # # plt.plot(gt_position[gt_idx_msckf][:, 1] - gt_position[gt_idx_msckf][0,1], label="gt y-pos", linestyle='dashdot')
+        # # plt.plot(gt_position[gt_idx_msckf][:, 2] - gt_position[gt_idx_msckf][0,2], label="gt z-pos", linestyle='dashdot', color='k')
 
-        # plt.plot(eskf_position[match_idx][:, 0], label="eskf x-pos", linestyle='dashdot')
-        plt.plot(eskf_position[match_idx][:, 1], label="eskf (baseline) y-pos", linestyle='solid', color='g')
-        # plt.plot(eskf_position[match_idx][:, 2], label="eskf z-pos", linestyle='dashdot', color='k')
+        # # plt.plot(eskf_position[match_idx][:, 0], label="eskf x-pos", linestyle='dashdot')
+        # plt.plot(eskf_position[match_idx][:, 1], label="eskf (baseline) y-pos", linestyle='solid', color='g')
+        # # plt.plot(eskf_position[match_idx][:, 2], label="eskf z-pos", linestyle='dashdot', color='k')
 
-        # plt.plot(gt_position[gt_idx_msckf][:, 0], label="gt x-pos", linestyle='dashdot')
-        plt.plot(gt_position[gt_idx_msckf][:, 1], label="gt y-pos", linestyle='dashdot', color='k')
-        # plt.plot(gt_position[gt_idx_msckf][:, 2], label="gt z-pos", linestyle='dashdot')
+        # # plt.plot(gt_position[gt_idx_msckf][:, 0], label="gt x-pos", linestyle='dashdot')
+        # plt.plot(gt_position[gt_idx_msckf][:, 1], label="gt y-pos", linestyle='dashdot', color='k')
+        # # plt.plot(gt_position[gt_idx_msckf][:, 2], label="gt z-pos", linestyle='dashdot')
 
-        # plt.plot(msckf_position[:, 0], label="msckf x-pos estimate")
-        plt.plot(msckf_position[:, 1], label="msckf y-pos estimate", linestyle='solid', color='r')
-        # plt.plot(msckf_position[:, 2], label="msckf z-pos estimate")
+        # # plt.plot(msckf_position[:, 0], label="msckf x-pos estimate")
+        # plt.plot(msckf_position[:, 1], label="msckf y-pos estimate", linestyle='solid', color='r')
+        # # plt.plot(msckf_position[:, 2], label="msckf z-pos estimate")
 
-        plt.xlabel("timestamp")
-        plt.ylabel("y position in meters")
-        plt.title("Ensemble filter estimates for y position")
-        plt.legend()
+        # plt.xlabel("timestamp")
+        # plt.ylabel("y position in meters")
+        # plt.title("Ensemble filter estimates for y position")
+        # plt.legend()
 
 
 
@@ -415,17 +417,41 @@ if __name__ == "__main__":
         # plt.title("ESKF Orientation Estimate")
         # plt.legend()
 
-        # plt.figure(9)
-        # plt.plot(ukf_rpy[:, 0], label="ukf roll estimate")
-        # # plt.plot(ukf_rpy[:, 1], label="ukf pitch estimate")
-        # # plt.plot(ukf_rpy[:, 2], label="ukf yaw estimate")
+        plt.figure(9)
+        plt.plot(ukf_rpy[:,0], label="ukf roll estimate")
+        # plt.plot(ukf_rpy[:,1], label="ukf pitch estimate")
+        # plt.plot(ukf_rpy[:,2], label="ukf yaw estimate")
+        plt.plot(gt_rpy[:, 0], label="gt roll", linestyle='dashdot')
+        # plt.plot(gt_rpy[:, 1], label="gt pitch", linestyle='dashdot')
+        # plt.plot(gt_rpy[:, 2], label="gt yaw", linestyle='dashdot', color='k')
+        plt.xlabel("timestamp")
+        plt.ylabel("angle in degrees")
+        plt.title("UKF Orientation Estimate")
+        plt.legend()
+
+        plt.figure(10)
+        # plt.plot(ukf_rpy[:,0], label="ukf roll estimate")
+        plt.plot(ukf_rpy[:,1], label="ukf pitch estimate")
+        # plt.plot(ukf_rpy[:,2], label="ukf yaw estimate")
         # plt.plot(gt_rpy[:, 0], label="gt roll", linestyle='dashdot')
-        # # plt.plot(gt_rpy[:, 1], label="gt pitch", linestyle='dashdot')
-        # # plt.plot(gt_rpy[:, 2], label="gt yaw", linestyle='dashdot', color='k')
-        # plt.xlabel("timestamp")
-        # plt.ylabel("angle in degrees")
-        # plt.title("UKF Orientation Estimate")
-        # plt.legend()
+        plt.plot(gt_rpy[:, 1], label="gt pitch", linestyle='dashdot')
+        # plt.plot(gt_rpy[:, 2], label="gt yaw", linestyle='dashdot', color='k')
+        plt.xlabel("timestamp")
+        plt.ylabel("angle in degrees")
+        plt.title("UKF Orientation Estimate")
+        plt.legend()
+
+        plt.figure(11)
+        # plt.plot(ukf_rpy[:,0], label="ukf roll estimate")
+        # plt.plot(ukf_rpy[:,1], label="ukf pitch estimate")
+        plt.plot(ukf_rpy[:,2], label="ukf yaw estimate")
+        # plt.plot(gt_rpy[:, 0], label="gt roll", linestyle='dashdot')
+        # plt.plot(gt_rpy[:, 1], label="gt pitch", linestyle='dashdot')
+        plt.plot(gt_rpy[:, 2], label="gt yaw", linestyle='dashdot', color='k')
+        plt.xlabel("timestamp")
+        plt.ylabel("angle in degrees")
+        plt.title("UKF Orientation Estimate")
+        plt.legend()
 
         
 
