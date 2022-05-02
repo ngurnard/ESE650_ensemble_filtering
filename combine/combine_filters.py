@@ -5,7 +5,7 @@ from scipy.spatial.transform import Rotation
 import pandas as pd
 import os
 
-from torch import gt
+import torch
 
 from perceptron import *
 
@@ -48,9 +48,12 @@ class load_data():
         # print("TESTING ESKF: ", eskf_position.shape, eskf_velocity.shape, eskf_quat.shape)
 
         # Convert the reading from the filter world frame (first frame is the world frame) to the vicon world frame (position)
-        R = Rotation.from_quat(np.array([-0.153,-0.8273,-0.08215,0.5341])).as_matrix() # this is the first quaternion from the GROUND TRUTH DATA
+        if (dataset == 1):
+            initial_quat = np.array([-0.153,-0.8273,-0.08215,0.5341])
+            initial_pos = np.array([4.688,-1.786,0.783]).transpose()
+        R = Rotation.from_quat(initial_quat).as_matrix() # this is the first quaternion from the GROUND TRUTH DATA
         for iter in range(eskf_position.shape[0]):
-            eskf_position[iter,:] = (R @ eskf_position[iter,:].transpose()) + np.array([4.688,-1.786,0.783]).transpose()
+            eskf_position[iter,:] = (R @ eskf_position[iter,:].transpose()) + initial_pos
 
         return eskf_data, eskf_timestamp, eskf_position, eskf_velocity, eskf_quat
 
@@ -70,7 +73,7 @@ class load_data():
         ukf_yaw = ukf_data[2,:]
         euler_angles = np.hstack((ukf_roll.reshape(-1,1), ukf_pitch.reshape(-1,1), ukf_yaw.reshape(-1,1)))
 
-        ukf_quat = Rotation.from_euler('xyz', euler_angles, degrees=False).as_quat()
+        ukf_quat = Rotation.from_euler('xyz', euler_angles, degrees=True).as_quat()
 
         _, gt_timestamp, _, _, _ = self.load_gt(dataset)
         return ukf_data, gt_timestamp, ukf_quat
@@ -113,7 +116,7 @@ if __name__ == "__main__":
     ### Get the data we need
     msckf_data, msckf_timestamp, msckf_position, msckf_velocity, msckf_quat = load_stuff.load_msckf(dataset)
     eskf_data, eskf_timestamp, eskf_position, eskf_velocity, eskf_quat = load_stuff.load_eskf(dataset)
-    # ukf_data, ukf_timestamp ,ukf_quat = load_stuff.load_ukf(dataset)
+    ukf_data, ukf_timestamp ,ukf_quat = load_stuff.load_ukf(dataset)
     gt_data, gt_timestamp, gt_position, gt_velocity, gt_quat = load_stuff.load_gt(dataset)
     complementary_data, complementary_timestamp, complementary_euler = load_stuff.load_complementary(dataset)
 
@@ -124,17 +127,19 @@ if __name__ == "__main__":
     complementary_rpy = complementary_euler
 
     # Convert the reading from the filter world frame (first frame is the world frame) to the vicon world frame (rotation)
-    R = Rotation.from_quat(np.array([-0.153,-0.8273,-0.08215,0.5341])).as_matrix() # from world frame to vicon world frame
+    if (dataset == 1):
+        initial_quat = np.array([-0.153,-0.8273,-0.08215,0.5341])
+    R = Rotation.from_quat(initial_quat).as_matrix() # from world frame to vicon world frame
     mat = Rotation.from_quat(eskf_quat).as_matrix()
     for iter in range(mat.shape[0]):
         mat[iter,:,:] = R @ mat[iter,:,:]
         eskf_rpy[iter,:] = Rotation.from_matrix(mat[iter,:,:]).as_euler('XYZ', degrees=True)
-    # ukf_rpy = Rotation.from_quat(ukf_quat).as_euler('XYZ', degrees=True)
-    # R = Rotation.from_quat(np.array([-0.153,-0.8273,-0.08215,0.5341])).as_matrix() # from world frame to vicon world frame
-    # mat = Rotation.from_quat(ukf_quat).as_matrix()
-    # for iter in range(mat.shape[0]):
-    #     mat[iter,:,:] = R @ mat[iter,:,:]
-    #     ukf_rpy[iter,:] = Rotation.from_matrix(mat[iter,:,:]).as_euler('XYZ', degrees=True)
+    ukf_rpy = Rotation.from_quat(ukf_quat).as_euler('XYZ', degrees=True)
+    R = Rotation.from_quat(initial_quat).as_matrix() # from world frame to vicon world frame
+    mat = Rotation.from_quat(ukf_quat).as_matrix()
+    for iter in range(mat.shape[0]):
+        mat[iter,:,:] = R @ mat[iter,:,:]
+        ukf_rpy[iter,:] = Rotation.from_matrix(mat[iter,:,:]).as_euler('XYZ', degrees=True)
 
     
     ## Perceptron Code -----------------------------------------------------------------
@@ -160,21 +165,153 @@ if __name__ == "__main__":
         # print("idx: ", idx)
         """
 
-        # Match the timesteps of the ESKF with MSCKF in order to make a perceptron of the positions
+        ## ROLL ----------------------------------------------------------------
+        # Match the timesteps of the ESKF with gt in order to make a perceptron of the positions
         match_idx = []
-        for i in range(len(msckf_timestamp)):
-            match_idx.append(np.argmin(np.abs(eskf_timestamp - msckf_timestamp[i])))
-        # print("match_idx: ", match_idx)
+        for i in range(len(eskf_timestamp)):
+            match_idx.append(np.argmin(np.abs(gt_timestamp - eskf_timestamp[i])))
+        # Make a numpy array of all of the filters roll
+        x_or_array = np.vstack((eskf_rpy[:, 0], complementary_rpy[match_idx][:, 0], ukf_rpy[match_idx][:, 0], gt_rpy[match_idx][:, 0])).transpose()
+       
+        # load in the trained model AFTER running perceptron.py
+        x_model = x_net()
+        x_model.load_state_dict(torch.load('./combine/x_model' + str(dataset) + '.pt'))
+        x_model.eval() # dropout and batch normalization layers to evaluation mode before running inference. Failing to do this will yield inconsistent inference results.
+
+        x_test, x_labels_test = x_or_array[:, :-1], x_or_array[:, -1:]
+        x_test = torch.from_numpy(x_test) # convert the numpy array to a tensor
+        x_labels_test = torch.from_numpy(x_labels_test) # convert the numpy array to a tensor
+        test_tds = torch.utils.data.TensorDataset(x_test, x_labels_test)
+        x_testloader = torch.utils.data.DataLoader(test_tds, shuffle=False)
+        criterion = torch.nn.MSELoss()
+        x_ls = []
+        x_pred = []
+        with torch.no_grad():
+            for itr, (image, label) in enumerate(x_testloader):
+                x_predicted = x_model(image.float())
+                loss = criterion(x_predicted, label.float())
+                x_ls.append(label.item())
+                x_pred.append(x_predicted.item())
+            print(f'MSE loss of test is {loss:.4f}')      
+
+        match_idx = []
+        for i in range(len(eskf_timestamp)):
+            match_idx.append(np.argmin(np.abs(gt_timestamp - eskf_timestamp[i])))
+
+        plt.figure(1)
+        plt.plot(x_pred, label="network roll estimate", linestyle='dashed', color='b')
+        plt.plot(eskf_rpy[:, 0], label="eskf roll", linestyle='solid', color='g')
+        plt.plot(gt_rpy[match_idx][:, 0], label="gt roll", linestyle='dashdot', color='k')
+        plt.plot(ukf_rpy[match_idx][:, 0], label="ukf roll", linestyle='dashdot', color='m')
+        plt.plot(complementary_rpy[match_idx][:, 0], label="complementary roll estimate", linestyle='solid', color='r')
+        plt.xlabel("timestamp")
+        plt.ylabel("roll estimate in degrees")
+        plt.title("Ensemble Filter Estimates for Roll - Network Output")
+        plt.legend()
+
+        ukf_loss_roll = np.sum(np.abs((gt_rpy[match_idx][:, 0] - ukf_rpy[match_idx][:, 0])))
+        eskf_loss_roll = np.sum(np.abs((gt_rpy[match_idx][:, 0] - eskf_rpy[:, 0])))
+        complementary_loss_roll = np.sum(np.abs((gt_rpy[match_idx][:, 0] - complementary_rpy[match_idx][:, 0])))
+        new_loss_roll = np.sum(np.abs((gt_rpy[match_idx][:, 0] - x_pred)))
+        print(f"ukf roll loss: {ukf_loss_roll}, eskf roll loss: {eskf_loss_roll}, complimentary roll loss: {complementary_loss_roll}, model output roll loss: {new_loss_roll}")
+
+
+        ## PITCH ----------------------------------------------------------------
+        # Make a numpy array of all of the filters pitch
+        y_or_array = np.vstack((eskf_rpy[:, 1], complementary_rpy[match_idx][:, 1], ukf_rpy[match_idx][:, 1], gt_rpy[match_idx][:, 1])).transpose()
+
+        # load in the trained model AFTER running perceptron.py
+        y_model = y_net()
+        y_model.load_state_dict(torch.load('./combine/y_model' + str(dataset) + '.pt'))
+        y_model.eval() # dropout and batch normalization layers to evaluation mode before running inference. Failing to do this will yield inconsistent inference results.
+
+        y_test, y_labels_test = y_or_array[:, :-1], y_or_array[:, -1:]
+        y_test = torch.from_numpy(y_test) # convert the numpy array to a tensor
+        y_labels_test = torch.from_numpy(y_labels_test) # convert the numpy array to a tensor
+        test_tds = torch.utils.data.TensorDataset(y_test, y_labels_test)
+        y_testloader = torch.utils.data.DataLoader(test_tds, shuffle=False)
+        criterion = torch.nn.MSELoss()
+        y_ls = []
+        y_pred = []
+        with torch.no_grad():
+            for itr, (image, label) in enumerate(y_testloader):
+                y_predicted = y_model(image.float())
+                loss = criterion(y_predicted, label.float())
+                y_ls.append(label.item())
+                y_pred.append(y_predicted.item())
+            print(f'MSE loss of test is {loss:.4f}')
+       
+        match_idx = []
+        for i in range(len(eskf_timestamp)):
+            match_idx.append(np.argmin(np.abs(gt_timestamp - eskf_timestamp[i])))
+
+        plt.figure(2)
+        plt.plot(y_pred, label="network pitch estimate", linestyle='dashed', color='b')
+        plt.plot(eskf_rpy[:, 1], label="eskf pitch", linestyle='solid', color='g')
+        plt.plot(gt_rpy[match_idx][:, 1], label="gt pitch", linestyle='dashdot', color='k')
+        plt.plot(ukf_rpy[match_idx][:, 1], label="ukf pitch", linestyle='dashdot', color='m')
+        plt.plot(complementary_rpy[match_idx][:, 1], label="complementary pitch estimate", linestyle='solid', color='r')
+        plt.xlabel("timestamp")
+        plt.ylabel("pitch estimate in degrees")
+        plt.title("Ensemble Filter Estimates for Pitch - Network Output")
+        plt.legend()
         
-        # Make a numpy array of all of the filters x,y,z positions
-        x_pos_array = np.vstack((msckf_position[:, 0], eskf_position[match_idx][:, 0])).transpose()
-        y_pos_array = np.vstack((msckf_position[:, 1], eskf_position[match_idx][:, 1])).transpose()
-        z_pos_array = np.vstack((msckf_position[:, 2], eskf_position[match_idx][:, 2])).transpose()
-        print("TESTING 2: ", x_pos_array.shape, y_pos_array.shape, z_pos_array.shape)
 
-        # Pass it into the perceptron!
-        pos_perceptron(x_pos_array, y_pos_array, z_pos_array)
+        ukf_loss_pitch = np.sum(np.abs((gt_rpy[match_idx][:, 1] - ukf_rpy[match_idx][:, 1])))
+        eskf_loss_pitch = np.sum(np.abs((gt_rpy[match_idx][:, 1] - eskf_rpy[:, 1])))
+        complementary_loss_pitch = np.sum(np.abs((gt_rpy[match_idx][:, 1] - complementary_rpy[match_idx][:, 1])))
+        new_loss_pitch = np.sum(np.abs((gt_rpy[match_idx][:, 1] - y_pred)))
+        print(f"ukf pitch loss: {ukf_loss_pitch}, eskf pitch loss: {eskf_loss_pitch}, complimentary pitch loss: {complementary_loss_pitch}, model output pitch loss: {new_loss_pitch}")
 
+        ## YAW ----------------------------------------------------------------
+        # Make a numpy array of all of the filters yaw
+        z_or_array = np.vstack((eskf_rpy[:, 2], complementary_rpy[match_idx][:, 2], ukf_rpy[match_idx][:, 2], gt_rpy[match_idx][:, 2])).transpose()
+
+        # load in the trained model AFTER running perceptron.py
+        z_model = z_net()
+        z_model.load_state_dict(torch.load('./combine/z_model' + str(dataset) + '.pt'))
+        z_model.eval() # dropout and batch normalization layers to evaluation mode before running inference. Failing to do this will yield inconsistent inference results.
+
+        z_test, z_labels_test = z_or_array[:, :-1], z_or_array[:, -1:]
+        z_test = torch.from_numpy(z_test) # convert the numpy array to a tensor
+        z_labels_test = torch.from_numpy(z_labels_test) # convert the numpy array to a tensor
+        test_tds = torch.utils.data.TensorDataset(z_test, z_labels_test)
+        z_testloader = torch.utils.data.DataLoader(test_tds, shuffle=False)
+        criterion = torch.nn.MSELoss()
+        z_ls = []
+        z_pred = []
+        with torch.no_grad():
+            for itr, (image, label) in enumerate(z_testloader):
+                z_predicted = z_model(image.float())
+                loss = criterion(z_predicted, label.float())
+                z_ls.append(label.item())
+                z_pred.append(z_predicted.item())
+            print(f'MSE loss of test is {loss:.4f}')
+       
+        match_idx = []
+        for i in range(len(eskf_timestamp)):
+            match_idx.append(np.argmin(np.abs(gt_timestamp - eskf_timestamp[i])))
+
+        plt.figure(3)
+        plt.plot(z_pred, label="network yaw estimate", linestyle='dashed', color='b')
+        plt.plot(eskf_rpy[:, 2], label="eskf yaw", linestyle='solid', color='g')
+        plt.plot(gt_rpy[match_idx][:, 2], label="gt yaw", linestyle='dashdot', color='k')
+        plt.plot(ukf_rpy[match_idx][:, 2], label="ukf yaw", linestyle='dashdot', color='m')
+        plt.plot(complementary_rpy[match_idx][:, 2], label="complementary yaw estimate", linestyle='solid', color='r')
+        plt.xlabel("timestamp")
+        plt.ylabel("yaw estimate in degrees")
+        plt.title("Ensemble Filter Estimates for Yaw - Network Output")
+        plt.legend()
+        
+
+        ukf_loss_yaw = np.sum(np.abs((gt_rpy[match_idx][:, 2] - ukf_rpy[match_idx][:, 2])))
+        eskf_loss_yaw = np.sum(np.abs((gt_rpy[match_idx][:, 2] - eskf_rpy[:, 2])))
+        complementary_loss_yaw = np.sum(np.abs((gt_rpy[match_idx][:, 2] - complementary_rpy[match_idx][:, 2])))
+        new_loss_yaw = np.sum(np.abs((gt_rpy[match_idx][:, 2] - z_pred)))
+        print(f"ukf yaw loss: {ukf_loss_yaw}, eskf yaw loss: {eskf_loss_yaw}, complimentary yaw loss: {complementary_loss_yaw}, model output yaw loss: {new_loss_yaw}")
+
+
+        plt.show()
     ## PLOTTING CODE -------------------------------------------------------------------
     if (match_timesteps == False and show_plots == True and perceptron == False):
         ### Plot the data as is
@@ -205,6 +342,15 @@ if __name__ == "__main__":
         plt.ylabel("position in meters")
         plt.title("Ground Truth Estimate")
         plt.legend()
+
+        plt.figure(4)
+        plt.plot(gt_rpy[:, 0] - gt_rpy[0,0], label="gt x-pos estimate", color="r")
+        plt.plot(gt_rpy[:, 1] - gt_rpy[0,1], label="gt y-pos estimate", color="g")
+        plt.plot(gt_rpy[:, 2] - gt_rpy[0,2], label="gt z-pos estimate", color="b")
+        plt.xlabel("timestamp")
+        plt.ylabel("rpy in meters")
+        plt.title("Ground Truth Estimate")
+        plt.legend()
         plt.show()
 
     elif (show_plots == True and match_timesteps == True and perceptron == False):
@@ -232,7 +378,10 @@ if __name__ == "__main__":
         gt_idx_complementary = []
         for i in range(len(complementary_timestamp)):
             gt_idx_complementary.append(np.argmin(np.abs(gt_timestamp - complementary_timestamp[i])))
-
+        # Ground Truth with ESKF
+        gt_idx_ukf = []
+        for i in range(len(ukf_timestamp)):
+            gt_idx_ukf.append(np.argmin(np.abs(gt_timestamp - ukf_timestamp[i])))
         # print(len(gt_idx_msckf), len(gt_timestamp[gt_idx_msckf]))
 
         # Get the simple average of the MSCKF and ESKF output for when the timestamps match
@@ -329,28 +478,65 @@ if __name__ == "__main__":
         plt.title("ESKF Orientation Estimate")
         plt.legend()
 
-        # Simple Average Plot
         plt.figure(7)
-        plt.plot(new_position[:, 1], label="average y-pos estimate", linestyle='dashed', color='b')
-        plt.plot(eskf_position[match_idx][:, 1], label="eskf (baseline) y-pos", linestyle='solid', color='g')
-        plt.plot(gt_position[gt_idx_msckf][:, 1], label="gt y-pos", linestyle='dashdot', color='k')
-        plt.plot(msckf_position[:, 1], label="msckf y-pos estimate", linestyle='solid', color='r')
+        plt.plot(ukf_rpy[:, 0], label="ukf roll estimate")
+        plt.plot(ukf_rpy[:, 1], label="ukf pitch estimate")
+        plt.plot(ukf_rpy[:, 2], label="ukf yaw estimate")
+        plt.plot(gt_rpy[:, 0], label="gt roll", linestyle='dashdot')
+        plt.plot(gt_rpy[:, 1], label="gt pitch", linestyle='dashdot')
+        plt.plot(gt_rpy[:, 2], label="gt yaw", linestyle='dashdot', color='k')
+        plt.xlabel("timestamp")
+        plt.ylabel("angle in degrees")
+        plt.title("ukf Orientation Estimate")
+        plt.legend()
+
+        ## Simple Average Plot -- presentaion
+        # plt.figure(7)
+        # plt.plot(new_position[:, 1], label="average y-pos estimate", linestyle='dashed', color='b')
+        # plt.plot(eskf_position[match_idx][:, 1], label="eskf (baseline) y-pos", linestyle='solid', color='g')
+        # plt.plot(gt_position[gt_idx_msckf][:, 1], label="gt y-pos", linestyle='dashdot', color='k')
+        # plt.plot(msckf_position[:, 1], label="msckf y-pos estimate", linestyle='solid', color='r')
+        # plt.xlabel("timestamp")
+        # plt.ylabel("y position in meters")
+        # plt.title("Ensemble filter estimates for y position - Simple Average")
+        # plt.legend()
+        # plt.figure(8)
+        # plt.plot(complementary_rpy[:,0], label = 'comp_yaw')
+        # plt.plot(complementary_rpy[:,1], label = 'comp_pitch')
+        # plt.plot(complementary_rpy[:,2], label = 'comp_roll')
+        # plt.plot(gt_rpy[gt_idx_complementary][:, 0], label="gt_yaw", linestyle='dashdot')
+        # plt.plot(gt_rpy[gt_idx_complementary][:, 1], label="gt_pitch", linestyle='dashdot')
+        # plt.plot(gt_rpy[gt_idx_complementary][:, 2], label="gt_roll", linestyle='dashdot', color='k')
+        # plt.xlabel("timestamp")
+        # plt.ylabel("angle in degrees")
+        # plt.title("Complementary Orientation Estimate")
+        # plt.legend()
+
+        ## Simple Averaging - All Filters
+        match_idx = []
+        for i in range(len(eskf_timestamp)):
+            match_idx.append(np.argmin(np.abs(gt_timestamp - eskf_timestamp[i])))
+
+        new_rpy = np.zeros_like(eskf_rpy)
+        new_rpy[:,0] = ((eskf_rpy[:, 0] + ukf_rpy[match_idx][:, 0] + complementary_rpy[match_idx][:, 0])/3)
+        new_rpy[:,1] = ((eskf_rpy[:, 1] + ukf_rpy[match_idx][:, 1] + complementary_rpy[match_idx][:, 1])/3)
+        new_rpy[:,2] = ((eskf_rpy[:, 2] + ukf_rpy[match_idx][:, 2] + complementary_rpy[match_idx][:, 2])/3)
+        plt.figure(8)
+        plt.plot(new_rpy[:, 0], label="average y-rot estimate", linestyle='dashed', color='b')
+        plt.plot(eskf_rpy[:, 0], label="eskf (baseline) y-rot", linestyle='solid', color='g')
+        plt.plot(gt_rpy[match_idx][:, 0], label="gt y-rot", linestyle='dashdot', color='k')
+        plt.plot(ukf_rpy[match_idx][:, 0], label="ukf y-rot", linestyle='dashdot', color='m')
+        plt.plot(complementary_rpy[match_idx][:, 0], label="complementary y-rot estimate", linestyle='solid', color='r')
         plt.xlabel("timestamp")
         plt.ylabel("y position in meters")
         plt.title("Ensemble filter estimates for y position - Simple Average")
         plt.legend()
 
-        plt.figure(8)
-        plt.plot(complementary_rpy[:,0], label = 'comp_yaw')
-        plt.plot(complementary_rpy[:,1], label = 'comp_pitch')
-        plt.plot(complementary_rpy[:,2], label = 'comp_roll')
-        plt.plot(gt_rpy[gt_idx_complementary][:, 0], label="gt_yaw", linestyle='dashdot')
-        plt.plot(gt_rpy[gt_idx_complementary][:, 1], label="gt_pitch", linestyle='dashdot')
-        plt.plot(gt_rpy[gt_idx_complementary][:, 2], label="gt_roll", linestyle='dashdot', color='k')
-        plt.xlabel("timestamp")
-        plt.ylabel("angle in degrees")
-        plt.title("Complementary Orientation Estimate")
-        plt.legend()
+        ukf_loss_roll = np.sum(np.abs((gt_rpy[match_idx][:, 0] - ukf_rpy[match_idx][:, 0])))
+        eskf_loss_roll = np.sum(np.abs((gt_rpy[match_idx][:, 0] - eskf_rpy[:, 0])))
+        complementary_loss_roll = np.sum(np.abs((gt_rpy[match_idx][:, 0] - complementary_rpy[match_idx][:, 0])))
+        new_loss_roll = np.sum(np.abs((gt_rpy[match_idx][:, 0] - new_rpy[:, 0])))
+        print(ukf_loss_roll, eskf_loss_roll, complementary_loss_roll, new_loss_roll)
 
         plt.show()
 
