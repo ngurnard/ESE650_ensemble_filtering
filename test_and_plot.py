@@ -7,6 +7,7 @@ import torch
 
 from train import *
 from load_data import load_data
+import os
 
 # Get user input if they want
 @click.command()
@@ -27,13 +28,13 @@ def main(dataset, ensemble):
     # perceptron = True # if you want to combine the outputs with a perceptron. Otherwise shows a simple average comparison
 
     ### Initlialize
-    load_stuff = load_data(path_euroc="./data/euroc_mav_dataset", path_estimate="./data/filter_outputs") # initilize the load_data object
+    load_stuff = load_data(path_euroc=os.getcwd() + "/data/euroc_mav_dataset", path_estimate=os.getcwd() + "/data/filter_outputs") # initilize the load_data object
 
     ### Get the data we need
     ukf_data, ukf_timestamp, ukf_rpy = load_stuff.load_ukf(dataset)
     gt_data, gt_timestamp, gt_position, gt_velocity, gt_rpy = load_stuff.load_gt(dataset)
     eskf_data, eskf_timestamp, eskf_position, eskf_velocity, eskf_rpy = load_stuff.load_eskf(dataset)
-    msckf_data, msckf_timestamp, msckf_position, msckf_velocity, msckf_rpy = load_stuff.load_msckf(dataset)
+    # msckf_data, msckf_timestamp, msckf_position, msckf_velocity, msckf_rpy = load_stuff.load_msckf(dataset)
     complementary_data, complementary_timestamp, complementary_rpy = load_stuff.load_complementary(dataset)
     
     ## Perceptron Code -----------------------------------------------------------------
@@ -49,7 +50,7 @@ def main(dataset, ensemble):
        
         # load in the trained model AFTER running perceptron.py
         x_model = x_net()
-        x_model.load_state_dict(torch.load('./data/trained_models/x_model.pt'))
+        x_model.load_state_dict(torch.load(os.getcwd() + '/data/trained_models/x_model.pt'))
         x_model.eval() # dropout and batch normalization layers to evaluation mode before running inference. Failing to do this will yield inconsistent inference results.
 
         x_test, x_labels_test = x_or_array[:, :-1], x_or_array[:, -1:]
@@ -96,7 +97,7 @@ def main(dataset, ensemble):
 
         # load in the trained model AFTER running perceptron.py
         y_model = y_net()
-        y_model.load_state_dict(torch.load('./data/trained_models/y_model.pt'))
+        y_model.load_state_dict(torch.load(os.getcwd() + '/data/trained_models/y_model.pt'))
         y_model.eval() # dropout and batch normalization layers to evaluation mode before running inference. Failing to do this will yield inconsistent inference results.
 
         y_test, y_labels_test = y_or_array[:, :-1], y_or_array[:, -1:]
@@ -143,7 +144,7 @@ def main(dataset, ensemble):
 
         # load in the trained model AFTER running perceptron.py
         z_model = z_net()
-        z_model.load_state_dict(torch.load('./data/trained_models/z_model.pt'))
+        z_model.load_state_dict(torch.load(os.getcwd() + '/data/trained_models/z_model.pt'))
         z_model.eval() # dropout and batch normalization layers to evaluation mode before running inference. Failing to do this will yield inconsistent inference results.
 
         z_test, z_labels_test = z_or_array[:, :-1], z_or_array[:, -1:]

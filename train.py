@@ -6,6 +6,7 @@ from sklearn.model_selection import train_test_split
 import tqdm
 from load_data import load_data
 import click
+import os
 
 ## Define the classes for each of the perceptrons
 class x_net(torch.nn.Module):
@@ -97,7 +98,7 @@ def orientation_perceptron(x_arr, y_arr, z_arr):
             x_pred.append(x_predicted.item())
         print(f'MSE loss of test is {loss:.4f}')
 
-    torch.save(x_model.state_dict(), './data/trained_models/x_model.pt')
+    torch.save(x_model.state_dict(), os.getcwd() + '/data/trained_models/x_model.pt')
 
     plt.figure(1)
     plt.plot(train_mse)
@@ -107,7 +108,7 @@ def orientation_perceptron(x_arr, y_arr, z_arr):
     plt.plot(x_ls, color = 'g')
     plt.plot(x_pred, color = 'r')
     plt.title('Prediction')
-    plt.show()
+    # plt.show()
 
 
     ## PITCH --------------------------------------------
@@ -159,7 +160,7 @@ def orientation_perceptron(x_arr, y_arr, z_arr):
             y_pred.append(y_predicted.item())
         print(f'MSE loss of test is {loss:.4f}')
 
-    torch.save(y_model.state_dict(), './data/trained_models/y_model.pt')
+    torch.save(y_model.state_dict(), os.getcwd() + '/data/trained_models/y_model.pt')
 
     plt.figure(1)
     plt.plot(train_mse)
@@ -169,7 +170,7 @@ def orientation_perceptron(x_arr, y_arr, z_arr):
     plt.plot(y_ls, color = 'g')
     plt.plot(y_pred, color = 'r')
     plt.title('Prediction')
-    plt.show()
+    # plt.show()
 
     ## YAW --------------------------------------------
     print("Training Yaw...")
@@ -220,7 +221,7 @@ def orientation_perceptron(x_arr, y_arr, z_arr):
             z_pred.append(z_predicted.item())
         print(f'MSE loss of test is {loss:.4f}')
 
-    torch.save(z_model.state_dict(), './data/trained_models/z_model.pt')
+    torch.save(z_model.state_dict(), os.getcwd() + '/data/trained_models/z_model.pt')
 
     plt.figure(1)
     plt.plot(train_mse)
@@ -251,13 +252,12 @@ def main(dataset1, dataset2, dataset3):
     if (dataset1 == dataset2 or dataset2 == dataset3 or dataset1 == dataset3):
         raise ValueError('Datasets not unique')
     ### Initlialize loading the data object
-    load_stuff = load_data(path_euroc="./data/euroc_mav_dataset", path_estimate="./data/filter_outputs") # initilize the load_data object
+    load_stuff = load_data(path_euroc=os.getcwd() + "/data/euroc_mav_dataset", path_estimate=os.getcwd() + "/data/filter_outputs") # initilize the load_data object
 
     ### Get the data we need -- Dataset 1
     ukf_data1, ukf_timestamp1, ukf_rpy1 = load_stuff.load_ukf(dataset1)
     gt_data1, gt_timestamp1, gt_position1, gt_velocity1, gt_rpy1 = load_stuff.load_gt(dataset1)
     eskf_data1, eskf_timestamp1, eskf_position1, eskf_velocity1, eskf_rpy1 = load_stuff.load_eskf(dataset1)
-    msckf_data1, msckf_timestamp1, msckf_position1, msckf_velocity1, msckf_rpy1 = load_stuff.load_msckf(dataset1)
     complementary_data1, complementary_timestamp1, complementary_rpy1 = load_stuff.load_complementary(dataset1)
 
     # Match the timesteps of the ESKF with gt in order to make a perceptron of the positions
@@ -279,7 +279,6 @@ def main(dataset1, dataset2, dataset3):
     ukf_data2, ukf_timestamp2, ukf_rpy2 = load_stuff.load_ukf(dataset2)
     gt_data2, gt_timestamp2, gt_position2, gt_velocity2, gt_rpy2 = load_stuff.load_gt(dataset2)
     eskf_data2, eskf_timestamp2, eskf_position2, eskf_velocity2, eskf_rpy2 = load_stuff.load_eskf(dataset2)
-    msckf_data2, msckf_timestamp2, msckf_position2, msckf_velocity2, msckf_rpy2 = load_stuff.load_msckf(dataset2)
     complementary_data2, complementary_timestamp2, complementary_rpy2 = load_stuff.load_complementary(dataset2)
 
     # Match the timesteps of the ESKF with gt in order to make a perceptron of the positions
@@ -297,7 +296,6 @@ def main(dataset1, dataset2, dataset3):
     ukf_data3, ukf_timestamp3, ukf_rpy3 = load_stuff.load_ukf(dataset3)
     gt_data3, gt_timestamp3, gt_position3, gt_velocity3, gt_rpy3 = load_stuff.load_gt(dataset3)
     eskf_data3, eskf_timestamp3, eskf_position3, eskf_velocity3, eskf_rpy3 = load_stuff.load_eskf(dataset3)
-    msckf_data3, msckf_timestamp3, msckf_position3, msckf_velocity3, msckf_rpy3 = load_stuff.load_msckf(dataset3)
     complementary_data3, complementary_timestamp3, complementary_rpy3 = load_stuff.load_complementary(dataset3)
 
     # Match the timesteps of the ESKF with gt in order to make a perceptron of the positions
@@ -313,7 +311,7 @@ def main(dataset1, dataset2, dataset3):
 
     ### Stack all of the datasets together to train
     x_or_array = np.hstack((x_or_array1, x_or_array2, x_or_array3)).transpose()
-    y_or_array = np.hstack((y_or_array1, y_or_array2, x_or_array3)).transpose()
+    y_or_array = np.hstack((y_or_array1, y_or_array2, y_or_array3)).transpose()
     z_or_array = np.hstack((z_or_array1, z_or_array2, z_or_array3)).transpose()
 
     # Pass it into the perceptron!
