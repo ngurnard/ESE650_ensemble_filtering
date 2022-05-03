@@ -74,20 +74,21 @@ def main(dataset, ensemble):
             match_idx.append(np.argmin(np.abs(gt_timestamp - eskf_timestamp[i])))
 
         plt.figure(1)
-        plt.plot(x_pred, label="network roll estimate", linestyle='dashed', color='b')
-        plt.plot(eskf_rpy[:, 0], label="eskf roll", linestyle='solid', color='g')
-        plt.plot(gt_rpy[match_idx][:, 0], label="gt roll", linestyle='dashdot', color='k')
-        plt.plot(ukf_rpy[match_idx][:, 0], label="ukf roll", linestyle='dashdot', color='m')
-        plt.plot(complementary_rpy[match_idx][:, 0], label="complementary roll estimate", linestyle='solid', color='r')
+        plt.rcParams['font.size'] = '30'
+        plt.plot(eskf_rpy[:, 0], label="eskf roll", linestyle='dashdot', color='g', linewidth=0.8, alpha=0.6)
+        plt.plot(gt_rpy[match_idx][:, 0], label="gt roll", linestyle='solid', color='k')
+        plt.plot(ukf_rpy[match_idx][:, 0], label="ukf roll", linestyle='dashdot', color='m', linewidth=0.8, alpha=0.6)
+        plt.plot(complementary_rpy[match_idx][:, 0], label="complementary roll estimate", linestyle='dashdot', color='r', linewidth=0.8, alpha=0.6)
+        plt.plot(x_pred, label="network roll estimate", linestyle='solid', color='b')
         plt.xlabel("timestamp")
         plt.ylabel("roll estimate in degrees")
-        plt.title("Ensemble Filter Estimates for Roll - Network Output")
-        plt.legend()
+        plt.title("Ensemble Filter Estimates for Roll - Network Output", pad=20)
+        plt.legend(loc='upper right', prop={'size': 10})
 
-        ukf_loss_roll = np.sum(np.abs((gt_rpy[match_idx][:, 0] - ukf_rpy[match_idx][:, 0])))
-        eskf_loss_roll = np.sum(np.abs((gt_rpy[match_idx][:, 0] - eskf_rpy[:, 0])))
-        complementary_loss_roll = np.sum(np.abs((gt_rpy[match_idx][:, 0] - complementary_rpy[match_idx][:, 0])))
-        new_loss_roll = np.sum(np.abs((gt_rpy[match_idx][:, 0] - x_pred)))
+        ukf_loss_roll = np.sqrt(np.sum(np.abs((gt_rpy[match_idx][:, 0] - ukf_rpy[match_idx][:, 0]))))
+        eskf_loss_roll = np.sqrt(np.sum(np.abs((gt_rpy[match_idx][:, 0] - eskf_rpy[:, 0]))))
+        complementary_loss_roll = np.sqrt(np.sum(np.abs((gt_rpy[match_idx][:, 0] - complementary_rpy[match_idx][:, 0]))))
+        new_loss_roll = np.sqrt(np.sum(np.abs((gt_rpy[match_idx][:, 0] - x_pred))))
         print(f"ukf roll loss: {ukf_loss_roll}, eskf roll loss: {eskf_loss_roll}, complimentary roll loss: {complementary_loss_roll}, model output roll loss: {new_loss_roll}")
 
 
@@ -121,21 +122,22 @@ def main(dataset, ensemble):
             match_idx.append(np.argmin(np.abs(gt_timestamp - eskf_timestamp[i])))
 
         plt.figure(2)
-        plt.plot(y_pred, label="network pitch estimate", linestyle='dashed', color='b')
-        plt.plot(eskf_rpy[:, 1], label="eskf pitch", linestyle='solid', color='g')
+        plt.rcParams['font.size'] = '30'
+        plt.plot(eskf_rpy[:, 1], label="eskf pitch", linestyle='solid', color='g', linewidth=0.8, alpha=0.6)
         plt.plot(gt_rpy[match_idx][:, 1], label="gt pitch", linestyle='dashdot', color='k')
-        plt.plot(ukf_rpy[match_idx][:, 1], label="ukf pitch", linestyle='dashdot', color='m')
-        plt.plot(complementary_rpy[match_idx][:, 1], label="complementary pitch estimate", linestyle='solid', color='r')
+        plt.plot(ukf_rpy[match_idx][:, 1], label="ukf pitch", linestyle='dashdot', color='m', linewidth=0.8, alpha=0.6)
+        plt.plot(complementary_rpy[match_idx][:, 1], label="complementary pitch estimate", linestyle='solid', color='r', linewidth=0.8, alpha=0.6)
+        plt.plot(y_pred, label="network pitch estimate", linestyle='dashed', color='b')
         plt.xlabel("timestamp")
         plt.ylabel("pitch estimate in degrees")
-        plt.title("Ensemble Filter Estimates for Pitch - Network Output")
-        plt.legend()
+        plt.title("Ensemble Filter Estimates for Pitch - Network Output", pad=20)
+        plt.legend(loc='upper right', prop={'size': 10})
         
 
-        ukf_loss_pitch = np.sum(np.abs((gt_rpy[match_idx][:, 1] - ukf_rpy[match_idx][:, 1])))
-        eskf_loss_pitch = np.sum(np.abs((gt_rpy[match_idx][:, 1] - eskf_rpy[:, 1])))
-        complementary_loss_pitch = np.sum(np.abs((gt_rpy[match_idx][:, 1] - complementary_rpy[match_idx][:, 1])))
-        new_loss_pitch = np.sum(np.abs((gt_rpy[match_idx][:, 1] - y_pred)))
+        ukf_loss_pitch = np.sqrt(np.sum(np.abs((gt_rpy[match_idx][:, 1] - ukf_rpy[match_idx][:, 1]))))
+        eskf_loss_pitch = np.sqrt(np.sum(np.abs((gt_rpy[match_idx][:, 1] - eskf_rpy[:, 1]))))
+        complementary_loss_pitch = np.sqrt(np.sum(np.abs((gt_rpy[match_idx][:, 1] - complementary_rpy[match_idx][:, 1]))))
+        new_loss_pitch = np.sqrt(np.sum(np.abs((gt_rpy[match_idx][:, 1] - y_pred))))
         print(f"ukf pitch loss: {ukf_loss_pitch}, eskf pitch loss: {eskf_loss_pitch}, complimentary pitch loss: {complementary_loss_pitch}, model output pitch loss: {new_loss_pitch}")
 
         ## YAW ----------------------------------------------------------------
@@ -168,21 +170,22 @@ def main(dataset, ensemble):
             match_idx.append(np.argmin(np.abs(gt_timestamp - eskf_timestamp[i])))
 
         plt.figure(3)
-        plt.plot(z_pred, label="network yaw estimate", linestyle='dashed', color='b')
-        plt.plot(eskf_rpy[:, 2], label="eskf yaw", linestyle='solid', color='g')
+        plt.rcParams['font.size'] = '30'
+        plt.plot(eskf_rpy[:, 2], label="eskf yaw", linestyle='solid', color='g', linewidth=0.8, alpha=0.6)
         plt.plot(gt_rpy[match_idx][:, 2], label="gt yaw", linestyle='dashdot', color='k')
-        plt.plot(ukf_rpy[match_idx][:, 2], label="ukf yaw", linestyle='dashdot', color='m')
-        plt.plot(complementary_rpy[match_idx][:, 2], label="complementary yaw estimate", linestyle='solid', color='r')
+        plt.plot(ukf_rpy[match_idx][:, 2], label="ukf yaw", linestyle='dashdot', color='m', linewidth=0.8, alpha=0.6)
+        plt.plot(complementary_rpy[match_idx][:, 2], label="complementary yaw estimate", linestyle='solid', color='r', linewidth=0.8, alpha=0.6)
+        plt.plot(z_pred, label="network yaw estimate", linestyle='dashed', color='b')
         plt.xlabel("timestamp")
         plt.ylabel("yaw estimate in degrees")
-        plt.title("Ensemble Filter Estimates for Yaw - Network Output")
-        plt.legend()
+        plt.title("Ensemble Filter Estimates for Yaw - Network Output", pad=20)
+        plt.legend(loc='upper right', prop={'size': 10})
         
 
-        ukf_loss_yaw = np.sum(np.abs((gt_rpy[match_idx][:, 2] - ukf_rpy[match_idx][:, 2])))
-        eskf_loss_yaw = np.sum(np.abs((gt_rpy[match_idx][:, 2] - eskf_rpy[:, 2])))
-        complementary_loss_yaw = np.sum(np.abs((gt_rpy[match_idx][:, 2] - complementary_rpy[match_idx][:, 2])))
-        new_loss_yaw = np.sum(np.abs((gt_rpy[match_idx][:, 2] - z_pred)))
+        ukf_loss_yaw = np.sqrt(np.sum(np.abs((gt_rpy[match_idx][:, 2] - ukf_rpy[match_idx][:, 2]))))
+        eskf_loss_yaw = np.sqrt(np.sum(np.abs((gt_rpy[match_idx][:, 2] - eskf_rpy[:, 2]))))
+        complementary_loss_yaw = np.sqrt(np.sum(np.abs((gt_rpy[match_idx][:, 2] - complementary_rpy[match_idx][:, 2]))))
+        new_loss_yaw = np.sqrt(np.sum(np.abs((gt_rpy[match_idx][:, 2] - z_pred))))
         print(f"ukf yaw loss: {ukf_loss_yaw}, eskf yaw loss: {eskf_loss_yaw}, complimentary yaw loss: {complementary_loss_yaw}, model output yaw loss: {new_loss_yaw}")
 
         # Show all of the Plots
