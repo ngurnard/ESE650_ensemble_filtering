@@ -1,4 +1,8 @@
 venv/
+<<<<<<< HEAD
+/data/euroc_mav_dataset
+=======
 reference_papers/
 ESE650_final_project_presentation_progress.pdf
 data/euroc_mav_dataset/
+>>>>>>> cf01e0b0e88acd3f1b2a290d105f8feaa808a343
