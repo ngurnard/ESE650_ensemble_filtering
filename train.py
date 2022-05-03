@@ -7,6 +7,7 @@ import tqdm
 from load_data import load_data
 import click
 import os
+import pdb
 
 ## Define the classes for each of the perceptrons
 class x_net(torch.nn.Module):
@@ -48,6 +49,8 @@ class z_net(torch.nn.Module):
 def orientation_perceptron(x_arr, y_arr, z_arr):
 
     epochs = 3500
+    criterion = torch.nn.CosineEmbeddingLoss()
+    batch_size = 16
 
     ## ROLL --------------------------------------------
     print("Training Roll...")
@@ -59,11 +62,10 @@ def orientation_perceptron(x_arr, y_arr, z_arr):
     x_labels_test = torch.from_numpy(x_labels_test) # convert the numpy array to a tensor
     train_tds = torch.utils.data.TensorDataset(x_train, x_labels_train)
     test_tds = torch.utils.data.TensorDataset(x_test, x_labels_test)
-    x_trainloader = torch.utils.data.DataLoader(train_tds, batch_size=16, shuffle=False)
+    x_trainloader = torch.utils.data.DataLoader(train_tds, batch_size=batch_size, shuffle=False)
     x_testloader = torch.utils.data.DataLoader(test_tds, shuffle=False)
 
     x_model = x_net()
-    criterion = torch.nn.MSELoss()
     optimizer = torch.optim.Adam(x_model.parameters(), lr=1e-2, weight_decay=1e-4) 
     train_mse = []
     # training iterations
@@ -74,8 +76,9 @@ def orientation_perceptron(x_arr, y_arr, z_arr):
             # zero gradient
             optimizer.zero_grad()
             # forward path
-            y_predicted = x_model(image.float())
-            loss = criterion(y_predicted, label.float())
+            x_predicted = x_model(image.float())
+            target = torch.ones(x_predicted.size(0))
+            loss = criterion(x_predicted, label.float(), target)
             # if(itr == 0):
             #     print(f'epoch: {epoch+1}, batch: {itr+1}, loss: {loss.item():.4f}')
             running_loss += loss.item()
@@ -93,7 +96,8 @@ def orientation_perceptron(x_arr, y_arr, z_arr):
     with torch.no_grad():
         for itr, (image, label) in enumerate(x_testloader):
             x_predicted = x_model(image.float())
-            loss = criterion(x_predicted, label.float())
+            target = torch.ones(x_predicted.size(0))
+            loss = criterion(x_predicted, label.float(), target)
             x_ls.append(label.item())
             x_pred.append(x_predicted.item())
         print(f'MSE loss of test is {loss:.4f}')
@@ -121,11 +125,10 @@ def orientation_perceptron(x_arr, y_arr, z_arr):
     y_labels_test = torch.from_numpy(y_labels_test) # convert the numpy array to a tensor
     train_tds = torch.utils.data.TensorDataset(y_train, y_labels_train)
     test_tds = torch.utils.data.TensorDataset(y_test, y_labels_test)
-    y_trainloader = torch.utils.data.DataLoader(train_tds, batch_size=16, shuffle=False)
+    y_trainloader = torch.utils.data.DataLoader(train_tds, batch_size=batch_size, shuffle=False)
     y_testloader = torch.utils.data.DataLoader(test_tds, shuffle=False)
 
     y_model = y_net()
-    criterion = torch.nn.MSELoss()
     optimizer = torch.optim.Adam(y_model.parameters(), lr=1e-2, weight_decay=1e-4) 
     train_mse = []
     # training iterations
@@ -137,7 +140,8 @@ def orientation_perceptron(x_arr, y_arr, z_arr):
             optimizer.zero_grad()
             # forward path
             y_predicted = y_model(image.float())
-            loss = criterion(y_predicted, label.float())
+            target = torch.ones(y_predicted.size(0))
+            loss = criterion(y_predicted, label.float(), target)
             # if(itr == 0):
             #     print(f'epoch: {epoch+1}, batch: {itr+1}, loss: {loss.item():.4f}')
             running_loss += loss.item()
@@ -155,7 +159,8 @@ def orientation_perceptron(x_arr, y_arr, z_arr):
     with torch.no_grad():
         for itr, (image, label) in enumerate(y_testloader):
             y_predicted = y_model(image.float())
-            loss = criterion(y_predicted, label.float())
+            target = torch.ones(y_predicted.size(0))
+            loss = criterion(y_predicted, label.float(), target)
             y_ls.append(label.item())
             y_pred.append(y_predicted.item())
         print(f'MSE loss of test is {loss:.4f}')
@@ -182,11 +187,10 @@ def orientation_perceptron(x_arr, y_arr, z_arr):
     z_labels_test = torch.from_numpy(z_labels_test) # convert the numpy array to a tensor
     train_tds = torch.utils.data.TensorDataset(z_train, z_labels_train)
     test_tds = torch.utils.data.TensorDataset(z_test, z_labels_test)
-    z_trainloader = torch.utils.data.DataLoader(train_tds, batch_size=16, shuffle=False)
+    z_trainloader = torch.utils.data.DataLoader(train_tds, batch_size=batch_size, shuffle=False)
     z_testloader = torch.utils.data.DataLoader(test_tds, shuffle=False)
 
     z_model = z_net()
-    criterion = torch.nn.MSELoss()
     optimizer = torch.optim.Adam(z_model.parameters(), lr=5e-3, weight_decay=1e-4) 
     train_mse = []
     # training iterations
@@ -198,7 +202,8 @@ def orientation_perceptron(x_arr, y_arr, z_arr):
             optimizer.zero_grad()
             # forward path
             z_predicted = z_model(image.float())
-            loss = criterion(z_predicted, label.float())
+            target = torch.ones(z_predicted.size(0))
+            loss = criterion(z_predicted, label.float(), target)
             # if(itr == 0):
             #     print(f'epoch: {epoch+1}, batch: {itr+1}, loss: {loss.item():.4f}')
             running_loss += loss.item()
@@ -216,7 +221,8 @@ def orientation_perceptron(x_arr, y_arr, z_arr):
     with torch.no_grad():
         for itr, (image, label) in enumerate(z_testloader):
             z_predicted = z_model(image.float())
-            loss = criterion(z_predicted, label.float())
+            target = torch.ones(z_predicted.size(0))
+            loss = criterion(z_predicted, label.float(), target)
             z_ls.append(label.item())
             z_pred.append(z_predicted.item())
         print(f'MSE loss of test is {loss:.4f}')
