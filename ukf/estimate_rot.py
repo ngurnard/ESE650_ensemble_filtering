@@ -4,18 +4,9 @@ from quaternion import Quaternion
 import matplotlib.pyplot as plt
 import tqdm
 
-#data files are numbered on the server.
-#for exmaple imuRaw1.mat, imuRaw2.mat and so on.
-#write a function that takes in an input number (1 through 3)
-#reads in the corresponding imu Data, and estimates
-#roll pitch and yaw using an unscented kalman filter
-
-def estimate_rot(data_num = 1):
+def estimate_rot():
     """
     Function implementing UFK filter to estimate rotation of moving body
-
-    INPUT: 
-    data_num - dataset number
 
     OUTPUT:
     roll - numpy array containing the mean estimate roll angle for all time steps in dataset
@@ -23,59 +14,13 @@ def estimate_rot(data_num = 1):
     yaw - numpy array containing the mean estimate yaw angle for all time steps in dataset
     """
 
-    # Loading the IMU and Vicon data
-    # imu = io.loadmat('/Users/aadit/Upenn/Semester 2/ESE 650/Homeworks/HW2/hw2_p2_data/imu/imuRaw'+str(data_num)+'.mat')
-    # # imu = io.loadmat('/source/imu/imuRaw'+str(data_num)+'.mat')
-    # accel = imu['vals'][0:3,:]
-    # gyro = imu['vals'][3:6,:]
-    # T = np.shape(imu['ts'])[1]
-    # time_stamp = imu['ts'].T
-    # print("accel", accel.shape)
-    # print("gyro", gyro.shape)
-    # print("time_stamp", time_stamp.shape)
-    # print("T", T)
-
-    # # Converting raw IMU data to values.
-    # accel_values = raw_to_value(accel, type = "accel")
-    # # print("accel values", np.linalg.norm(accel_values[587,:]))
-    # gyro_values = raw_to_value(gyro, type = "gyro")
-    # print("gyro", gyro_values.shape)
-    # print("accel", accel_values.shape)
-
-
     dirname = '/Users/aadit/Desktop/ESE650_ensemble_filtering/data/euroc_mav_dataset/MH_05_difficult/mav0/imu0/'
-    # gyro_bias = np.load('/Users/aadit/Desktop/ESE650_ensemble_filtering/ufk/data/msckf_gyro_bias.npy') 
-    # acc_bias = np.load('/Users/aadit/Desktop/ESE650_ensemble_filtering/ufk/data/msckf_acc_bias.npy')
     imu0 = np.genfromtxt(dirname + 'data.csv', delimiter=',', dtype='float64', skip_header=1)
     imu_timestamp = imu0[:, 0]
     gyro = imu0[:, 1:4]
     accel = imu0[:, 4:]
     time_stamp = imu0[:,0].reshape(-1,1)
     T = time_stamp.shape[0]
-
-    # plt.figure(1)
-    # plt.plot(gyro_bias[:,0], label="x gyro")
-    # plt.plot(gyro_bias[:,1], label="y gyrp")
-    # plt.p_bias[:,1], label="y acc")
-    # plt.plot(acc_bias[:,2], label="z acc")
-    # plt.title("acclot(gyro_bias[:,2], label="z gyro")
-    # plt.title("Gyro bias")
-    # plt.legend()
-
-    # plt.figure(2)
-    # plt.plot(acc_bias[:,0], label="x axx")
-    # plt.plot(acc bias")
-    # plt.legend()
-
-    # plt.show()
-    # exit()
-
-    # print("accel", accel.shape)
-    # print("gyro", gyro.shape)
-    # print("time_stamp", time_stamp.shape)
-    # print("T", T)
-    # print("gyro bias", gyro_bias.shape)
-    # print("acc bias", acc_bias.shape)
 
     # Converting raw IMU data to values.
 
@@ -104,11 +49,6 @@ def estimate_rot(data_num = 1):
     gyro_values = gyro - np.array([-0.001806,0.02094,0.07687]).reshape(1,3)
     accel_values = accel_values / np.linalg.norm(accel_values, axis = 1).reshape(-1,1)
     
-    ### YOUR CODE GOES HERE ###
-
-
-    
-
     # Mean of the initial state estimation
     x_cap = np.array([1,0,0,0,0,0,0]).reshape(7,1) 
     # Covariance of the initial state estimation
@@ -467,89 +407,10 @@ def mean_cov_next_state(x_cap_dash, K, v, P_dash, Pvv):
     return x_cap_next, P_next
 
 
-def plot_graphs(roll, roll_true, pitch, pitch_true, yaw, yaw_true):
-    plt.figure(1)
-    plt.plot(roll_true, 'r', label="True value roll")
-    plt.plot(roll, 'g', label="Predictions roll")
-    plt.xlabel('Time Step Iteration')
-    plt.ylabel('Orientation (radians)')
-    plt.title('Predictions for roll VS ground truth for roll')
-    plt.legend()
-    plt.savefig('roll.png')
-
-    plt.figure(2)
-    plt.plot(pitch_true, 'g', label="True value pitch")
-    plt.plot(pitch, 'b', label="Predictions pitch")
-    plt.xlabel('Time Step Iteration')
-    plt.ylabel('Orientation (radians)')
-    plt.title('Predictions for pitch VS ground truth for pitch')
-    plt.legend()
-    plt.savefig('pitch.png')
-
-    plt.figure(3)
-    plt.plot(yaw_true, 'c', label="True value yaw")
-    plt.plot(yaw, 'b', label="Predictions yaw")
-    plt.xlabel('Time Step Iteration')
-    plt.ylabel('Orientation (radians)')
-    plt.title('Predictions for yaw VS ground truth for yaw')
-    plt.legend()
-    plt.savefig('yaw.png')
-
-def rpy_from_rot(data_num = 1):
-    vicon = io.loadmat('hw2_p2_data/vicon/viconRot'+str(data_num)+'.mat')
-    vicon_rots = np.transpose(vicon['rots'], (2, 0, 1))
-    vicon_rpy = np.array([])
-    for R in vicon_rots:
-        q = Quaternion()
-        q.from_rotm(R)
-        if vicon_rpy.shape[0]==0:
-            vicon_rpy = q.euler_angles().reshape(1, -1)
-            continue
-        vicon_rpy = np.vstack((vicon_rpy, q.euler_angles().reshape(1, -1)))
-    return vicon_rpy
-
-def plot_graphs_w(wx, wx_true, wy, wy_true, wz, wz_true):
-    plt.figure(4)
-    plt.plot(wx_true, 'r', label="True value wx")
-    plt.plot(wx, 'g', label="Predictions wx")
-    plt.xlabel('Time Step Iteration')
-    plt.ylabel('Orientation (radians/s)')
-    plt.title('Predictions for wx VS ground truth for wx')
-    plt.legend()
-    plt.savefig('wx.png')
-
-    plt.figure(5)
-    plt.plot(wy_true, 'g', label="True value wy")
-    plt.plot(wy, 'b', label="Predictions wy")
-    plt.xlabel('Time Step Iteration')
-    plt.ylabel('Orientation (radians/s)')
-    plt.title('Predictions for wy VS ground truth for wy')
-    plt.legend()
-    plt.savefig('wy.png')
-
-    plt.figure(6)
-    plt.plot(wz_true, 'c', label="True value wz")
-    plt.plot(wz, 'b', label="Predictions wz")
-    plt.xlabel('Time Step Iteration')
-    plt.ylabel('Orientation (radians/s)')
-    plt.title('Predictions for wz VS ground truth for wz')
-    plt.legend()
-    plt.savefig('wz.png')
-
-
-
 if __name__ == "__main__":
-    data_num = 2
 
-    roll, pitch, yaw, time_stamp = estimate_rot(data_num)
+    roll, pitch, yaw, time_stamp = estimate_rot()
     np.save("ukf_data5", np.array([roll,pitch,yaw]))
-    # vicon_rpy = rpy_from_rot(data_num)
-    # plot_graphs(roll, vicon_rpy[:,0], pitch, vicon_rpy[:,1], yaw, vicon_rpy[:,2])
-
-    # imu = io.loadmat('hw2_p2_data/imu/imuRaw'+str(data_num)+'.mat')
-    # gyro = imu['vals'][3:6,:]
-    # gyro_values = raw_to_value(gyro, type = "gyro")
-    # plot_graphs_w(wx, gyro_values[:,0], wy, gyro_values[:,1], wz, gyro_values[:,2])
 
 
 
