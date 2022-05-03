@@ -73,6 +73,8 @@ def complementary_filter_update(initial_rotation, angular_velocity, linear_accel
     
     g_prime = g_temp[1:].copy()
     g_prime = g_prime/np.linalg.norm(g_prime)
+    # print(g_prime)
+    # exit()
     
     #correction rotation in quaternion form
     q_correction = np.array([np.sqrt((1 + g_prime[0])/2), 0, g_prime[2]/np.sqrt(2*(1 + g_prime[0])), -g_prime[1]/np.sqrt(2*(1 + g_prime[0]))])

@@ -8,10 +8,15 @@ import pdb
 
 # %%  CSV imu file
 start = time.time()
-fname = './data/euroc_mav_dataset/MH_01_easy/mav0/imu0/data.csv'
+# fname = '../dataset/MachineHall01_reduced/imu0/data.csv'
+# fname = '../dataset/MH_02_easy/mav0/imu0/data.csv'
+# fname = '../dataset/MH_03_medium/mav0/imu0/data.csv'
+# fname = '../dataset/MH_04_difficult/mav0/imu0/data.csv'
+fname = '../dataset/MH_05_difficult/mav0/imu0/data.csv'
 
 # %%
 imu0 = np.genfromtxt(fname, delimiter=',', dtype='float64', skip_header=1)
+# gt_data = np.genfromtxt(fname2,delimiter=',', dtype='float64', skip_header=1)
 
 # %% pull out components of data set - different views of matrix
 
@@ -34,14 +39,30 @@ n = imu0.shape[0]
 
 euler = np.zeros((n, 3))
 
-R_correction = Rotation.from_quat(np.array([-0.153, -0.8273, -0.08215, 0.5341]))
+
+# acc_bias = np.array([-0.025266, 0.136696, 0.075593])    #mh_01
+# gyro_bias = np.array([-0.00317, 0.021267, 0.078502])    #mh_01
+
+# acc_bias = np.array([-0.024346, 0.144439, 0.06754])    #mh_02
+# gyro_bias = np.array([-0.002535, 0.021162, 0.07717])    #mh_02
+
+# acc_bias = np.array([-0.022996, 0.125896, 0.057076])    #mh_03
+# gyro_bias = np.array([-0.002571, 0.021269, 0.076861])    #mh_03
+
+# acc_bias = np.array([-0.026895, 0.13691, 0.059287])    #mh_04
+# gyro_bias = np.array([-0.002133, 0.021059, 0.076659])    #mh_04
+
+acc_bias = np.array([-0.020544, 0.124837, 0.0618])    #mh_05
+gyro_bias = np.array([-0.001806, 0.02094, 0.07687])    #mh_05
+
+
+
 R = Rotation.identity()
 for i in range(1, n):
     # print(i)
     dt = (t[i] - t[i - 1]) * 1e-9
-    R = complementary_filter_update(R, angular_velocity[i - 1] - np.array([-0.00317, 0.021267, 0.078502]), linear_acceleration[i] - np.array([-0.025266, 0.136696, 0.075593]), dt)
-    new_R = R_correction*R
-    euler[i] = new_R.as_euler('XYZ', degrees=True)
+    R = complementary_filter_update(R, angular_velocity[i - 1] - gyro_bias, linear_acceleration[i] - acc_bias, dt)
+    euler[i] = R.as_euler('XYZ', degrees=True)
 
 # %% Plots
 
@@ -50,8 +71,9 @@ t2 = (t - t[0]) * 1e-9
 end = time.time()
 print("runtime: ", (end - start))
 
+temp = np.concatenate((t.reshape((-1,1)), euler), axis = 1)
+np.save('complementary_data_mh05_v3', temp)
 # pdb.set_trace()
-np.save('./data/filter_outputs/complementary_data1', np.concatenate((t.reshape((-1,1)), euler), axis = 1))
 
 fig = plt.figure()
 plt.plot(t2, euler[:, 0], 'b', label='yaw')
