@@ -68,9 +68,14 @@ class z_net(torch.nn.Module):
         return x
 
 def loss_func(output, target):
-    a = (output - target)**2
+    ## MSE Loss ##
+    # a = (output - target)**2
+
+    ## Custom Loss ##
+    diff = output - target
+    diff = (diff + 180) % 360 - 180
     
-    return torch.mean(a)
+    return torch.mean(torch.abs(diff))
 
 def orientation_perceptron(x_arr, y_arr, z_arr):
 
@@ -103,7 +108,7 @@ def orientation_perceptron(x_arr, y_arr, z_arr):
             optimizer.zero_grad()
             # forward path
             x_predicted = x_model(image.float())
-            target = torch.ones(x_predicted.size(0))
+            # target = torch.ones(x_predicted.size(0))
             # loss = criterion(x_predicted, label.float(), target)
             loss = loss_func(x_predicted, label.float())
             # if(itr == 0):

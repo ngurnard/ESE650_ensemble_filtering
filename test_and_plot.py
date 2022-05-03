@@ -45,6 +45,10 @@ def main(dataset, ensemble):
         match_idx = []
         for i in range(len(eskf_timestamp)):
             match_idx.append(np.argmin(np.abs(gt_timestamp - eskf_timestamp[i])))
+        # Match the timesteps of the MSCKF with gt in order to evaluate baseline
+        match_idx_msckf = []
+        for i in range(len(msckf_timestamp)):
+            match_idx_msckf.append(np.argmin(np.abs(gt_timestamp - msckf_timestamp[i])))
         # Make a numpy array of all of the filters roll
         x_or_array = np.vstack((eskf_rpy[:, 0], complementary_rpy[match_idx][:, 0], ukf_rpy[match_idx][:, 0], gt_rpy[match_idx][:, 0])).transpose()
        
@@ -67,11 +71,7 @@ def main(dataset, ensemble):
                 loss = criterion(x_predicted, label.float())
                 x_ls.append(label.item())
                 x_pred.append(x_predicted.item())
-            print(f'MSE loss of test is {loss:.4f}')      
-
-        match_idx = []
-        for i in range(len(eskf_timestamp)):
-            match_idx.append(np.argmin(np.abs(gt_timestamp - eskf_timestamp[i])))
+            print(f'Loss of test is {loss:.4f}')      
 
         plt.figure(1)
         plt.rcParams['font.size'] = '30'
@@ -85,11 +85,12 @@ def main(dataset, ensemble):
         plt.title("Ensemble Filter Estimates for Roll - Network Output", pad=20)
         plt.legend(loc='upper right', prop={'size': 10})
 
-        ukf_loss_roll = np.sqrt(np.sum(np.abs((gt_rpy[match_idx][:, 0] - ukf_rpy[match_idx][:, 0]))))
-        eskf_loss_roll = np.sqrt(np.sum(np.abs((gt_rpy[match_idx][:, 0] - eskf_rpy[:, 0]))))
-        complementary_loss_roll = np.sqrt(np.sum(np.abs((gt_rpy[match_idx][:, 0] - complementary_rpy[match_idx][:, 0]))))
-        new_loss_roll = np.sqrt(np.sum(np.abs((gt_rpy[match_idx][:, 0] - x_pred))))
-        print(f"ukf roll loss: {ukf_loss_roll}, eskf roll loss: {eskf_loss_roll}, complimentary roll loss: {complementary_loss_roll}, model output roll loss: {new_loss_roll}")
+        ukf_loss_roll = np.sqrt(np.mean((gt_rpy[match_idx][:, 0] - ukf_rpy[match_idx][:, 0])**2))
+        eskf_loss_roll = np.sqrt(np.mean((gt_rpy[match_idx][:, 0] - eskf_rpy[:, 0])**2))
+        complementary_loss_roll = np.sqrt(np.mean((gt_rpy[match_idx][:, 0] - complementary_rpy[match_idx][:, 0])**2))
+        new_loss_roll = np.sqrt(np.mean((gt_rpy[match_idx][:, 0] - x_pred)**2))
+        msckf_loss_roll = np.sqrt(np.mean((gt_rpy[match_idx_msckf][:, 0] - msckf_rpy[:,0])**2))
+        print(f"ukf roll loss: {ukf_loss_roll}, eskf roll loss: {eskf_loss_roll}, complimentary roll loss: {complementary_loss_roll}, model output roll loss: {new_loss_roll}, msckf roll loss: {msckf_loss_roll}")
 
 
         ## PITCH ----------------------------------------------------------------
@@ -116,10 +117,6 @@ def main(dataset, ensemble):
                 y_ls.append(label.item())
                 y_pred.append(y_predicted.item())
             print(f'MSE loss of test is {loss:.4f}')
-       
-        match_idx = []
-        for i in range(len(eskf_timestamp)):
-            match_idx.append(np.argmin(np.abs(gt_timestamp - eskf_timestamp[i])))
 
         plt.figure(2)
         plt.rcParams['font.size'] = '30'
@@ -134,11 +131,12 @@ def main(dataset, ensemble):
         plt.legend(loc='upper right', prop={'size': 10})
         
 
-        ukf_loss_pitch = np.sqrt(np.sum(np.abs((gt_rpy[match_idx][:, 1] - ukf_rpy[match_idx][:, 1]))))
-        eskf_loss_pitch = np.sqrt(np.sum(np.abs((gt_rpy[match_idx][:, 1] - eskf_rpy[:, 1]))))
-        complementary_loss_pitch = np.sqrt(np.sum(np.abs((gt_rpy[match_idx][:, 1] - complementary_rpy[match_idx][:, 1]))))
-        new_loss_pitch = np.sqrt(np.sum(np.abs((gt_rpy[match_idx][:, 1] - y_pred))))
-        print(f"ukf pitch loss: {ukf_loss_pitch}, eskf pitch loss: {eskf_loss_pitch}, complimentary pitch loss: {complementary_loss_pitch}, model output pitch loss: {new_loss_pitch}")
+        ukf_loss_pitch = np.sqrt(np.mean((gt_rpy[match_idx][:, 1] - ukf_rpy[match_idx][:, 1])**2))
+        eskf_loss_pitch = np.sqrt(np.mean((gt_rpy[match_idx][:, 1] - eskf_rpy[:, 1])**2))
+        complementary_loss_pitch = np.sqrt(np.mean((gt_rpy[match_idx][:, 1] - complementary_rpy[match_idx][:, 1])**2))
+        new_loss_pitch = np.sqrt(np.mean((gt_rpy[match_idx][:, 1] - y_pred)**2))
+        msckf_loss_pitch = np.sqrt(np.mean((gt_rpy[match_idx_msckf][:, 1] - msckf_rpy[:,1])**2))
+        print(f"ukf pitch loss: {ukf_loss_pitch}, eskf pitch loss: {eskf_loss_pitch}, complimentary pitch loss: {complementary_loss_pitch}, model output pitch loss: {new_loss_pitch}, msckf pitch loss: {msckf_loss_pitch}")
 
         ## YAW ----------------------------------------------------------------
         # Make a numpy array of all of the filters yaw
@@ -164,10 +162,6 @@ def main(dataset, ensemble):
                 z_ls.append(label.item())
                 z_pred.append(z_predicted.item())
             print(f'MSE loss of test is {loss:.4f}')
-       
-        match_idx = []
-        for i in range(len(eskf_timestamp)):
-            match_idx.append(np.argmin(np.abs(gt_timestamp - eskf_timestamp[i])))
 
         plt.figure(3)
         plt.rcParams['font.size'] = '30'
@@ -182,11 +176,12 @@ def main(dataset, ensemble):
         plt.legend(loc='upper right', prop={'size': 10})
         
 
-        ukf_loss_yaw = np.sqrt(np.sum(np.abs((gt_rpy[match_idx][:, 2] - ukf_rpy[match_idx][:, 2]))))
-        eskf_loss_yaw = np.sqrt(np.sum(np.abs((gt_rpy[match_idx][:, 2] - eskf_rpy[:, 2]))))
-        complementary_loss_yaw = np.sqrt(np.sum(np.abs((gt_rpy[match_idx][:, 2] - complementary_rpy[match_idx][:, 2]))))
-        new_loss_yaw = np.sqrt(np.sum(np.abs((gt_rpy[match_idx][:, 2] - z_pred))))
-        print(f"ukf yaw loss: {ukf_loss_yaw}, eskf yaw loss: {eskf_loss_yaw}, complimentary yaw loss: {complementary_loss_yaw}, model output yaw loss: {new_loss_yaw}")
+        ukf_loss_yaw = np.sqrt(np.mean((gt_rpy[match_idx][:, 2] - ukf_rpy[match_idx][:, 2])**2))
+        eskf_loss_yaw = np.sqrt(np.mean((gt_rpy[match_idx][:, 2] - eskf_rpy[:, 2])**2))
+        complementary_loss_yaw = np.sqrt(np.mean((gt_rpy[match_idx][:, 2] - complementary_rpy[match_idx][:, 2])**2))
+        new_loss_yaw = np.sqrt(np.mean((gt_rpy[match_idx][:, 2] - z_pred)**2))
+        msckf_loss_yaw = np.sqrt(np.mean((gt_rpy[match_idx_msckf][:, 2] - msckf_rpy[:,2])**2))
+        print(f"ukf yaw loss: {ukf_loss_yaw}, eskf yaw loss: {eskf_loss_yaw}, complimentary yaw loss: {complementary_loss_yaw}, model output yaw loss: {new_loss_yaw}, msckf yaw loss: {msckf_loss_yaw}")
 
         # Show all of the Plots
         plt.show()
@@ -406,11 +401,12 @@ def main(dataset, ensemble):
         plt.ylabel("roll estimate in degrees")
         plt.title("Ensemble Filter Estimates for Roll - Simple Average")
         plt.legend()
-        ukf_loss_roll = np.sum(np.abs((gt_rpy[gt_idx_eskf][:, 0] - ukf_rpy[gt_idx_eskf][:, 0])))
-        eskf_loss_roll = np.sum(np.abs((gt_rpy[gt_idx_eskf][:, 0] - eskf_rpy[:, 0])))
-        complementary_loss_roll = np.sum(np.abs((gt_rpy[gt_idx_eskf][:, 0] - complementary_rpy[gt_idx_eskf][:, 0])))
-        avg_loss_roll = np.sum(np.abs((gt_rpy[gt_idx_eskf][:, 0] - avg_rpy[:, 0])))
-        print(f"ukf roll loss: {ukf_loss_roll}, eskf roll loss: {eskf_loss_roll}, complimentary roll loss: {complementary_loss_roll}, model output roll loss: {avg_loss_roll}")
+
+        avg_loss_roll = np.sqrt(np.mean((gt_rpy[gt_idx_eskf][:, 0] - avg_rpy[:, 0])**2))
+        avg_loss_pitch = np.sqrt(np.mean((gt_rpy[gt_idx_eskf][:, 1] - avg_rpy[:, 1])**2))
+        avg_loss_yaw = np.sqrt(np.mean((gt_rpy[gt_idx_eskf][:, 2] - avg_rpy[:, 2])**2))
+
+        print(f"avg roll loss: {avg_loss_roll}, avg pitch loss: {avg_loss_pitch}, avg yaw loss: {avg_loss_yaw}")
 
         plt.figure(10)
         plt.plot(avg_rpy[:, 1], label="average pitch estimate", linestyle='dashed', color='b')

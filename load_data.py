@@ -25,6 +25,7 @@ class load_data():
         msckf_velocity = np.stack(msckf_data[:,2])
         msckf_quat = np.stack(msckf_data[:,3]) # x,y,z,w
         msckf_rpy = Rotation.from_quat(msckf_quat).as_euler('XYZ', degrees=True)
+        
         return msckf_data, msckf_timestamp, msckf_position, msckf_velocity, msckf_rpy
 
     def load_eskf(self, dataset=1):
