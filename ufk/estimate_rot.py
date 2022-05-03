@@ -43,7 +43,7 @@ def estimate_rot(data_num = 1):
     # print("accel", accel_values.shape)
 
 
-    dirname = '/Users/aadit/Upenn/Semester 2/ESE 650/Final Project/stereo_msckf/dataset/MH_01_easy/mav0/imu0/'
+    dirname = '/Users/aadit/Desktop/ESE650_ensemble_filtering/data/euroc_mav_dataset/MH_05_difficult/mav0/imu0/'
     # gyro_bias = np.load('/Users/aadit/Desktop/ESE650_ensemble_filtering/ufk/data/msckf_gyro_bias.npy') 
     # acc_bias = np.load('/Users/aadit/Desktop/ESE650_ensemble_filtering/ufk/data/msckf_acc_bias.npy')
     imu0 = np.genfromtxt(dirname + 'data.csv', delimiter=',', dtype='float64', skip_header=1)
@@ -78,10 +78,32 @@ def estimate_rot(data_num = 1):
     # print("acc bias", acc_bias.shape)
 
     # Converting raw IMU data to values.
-    accel_values = accel - np.array([-0.025266, 0.136696, 0.075593]).reshape(1,3)
-    accel_values = accel_values / np.linalg.norm(accel_values, axis = 1).reshape(-1,1)
-    gyro_values = gyro - np.array([-0.003172,0.021267,0.078502]).reshape(1,3)
 
+    # # MH_01_easy
+    # accel_values = accel - np.array([-0.025266, 0.136696, 0.075593]).reshape(1,3)
+    # gyro_values = gyro - np.array([-0.003172,0.021267,0.078502]).reshape(1,3)
+    # accel_values = accel_values / np.linalg.norm(accel_values, axis = 1).reshape(-1,1)
+
+    # # MH_02_easy
+    # accel_values = accel - np.array([-0.024346, 0.144439, 0.06754]).reshape(1,3)
+    # gyro_values = gyro - np.array([-0.002535,0.021162,0.07717]).reshape(1,3)
+    # accel_values = accel_values / np.linalg.norm(accel_values, axis = 1).reshape(-1,1)
+
+    # # MH_03_medium
+    # accel_values = accel - np.array([-0.022996,0.125896,0.057076]).reshape(1,3)
+    # gyro_values = gyro - np.array([-0.002571,0.021269,0.076861]).reshape(1,3)
+    # accel_values = accel_values / np.linalg.norm(accel_values, axis = 1).reshape(-1,1)
+
+    # # MH_04_difficult
+    # accel_values = accel - np.array([-0.026895,0.13691,0.059287]).reshape(1,3)
+    # gyro_values = gyro - np.array([-0.002133,0.021059,0.076659]).reshape(1,3)
+    # accel_values = accel_values / np.linalg.norm(accel_values, axis = 1).reshape(-1,1)
+
+    # MH_05_difficult
+    accel_values = accel - np.array([-0.020544,0.124837,0.0618]).reshape(1,3)
+    gyro_values = gyro - np.array([-0.001806,0.02094,0.07687]).reshape(1,3)
+    accel_values = accel_values / np.linalg.norm(accel_values, axis = 1).reshape(-1,1)
+    
     ### YOUR CODE GOES HERE ###
 
 
@@ -520,7 +542,7 @@ if __name__ == "__main__":
     data_num = 2
 
     roll, pitch, yaw, time_stamp = estimate_rot(data_num)
-    np.save("ukf", np.array([roll,pitch,yaw]))
+    np.save("ukf_data5", np.array([roll,pitch,yaw]))
     # vicon_rpy = rpy_from_rot(data_num)
     # plot_graphs(roll, vicon_rpy[:,0], pitch, vicon_rpy[:,1], yaw, vicon_rpy[:,2])
 

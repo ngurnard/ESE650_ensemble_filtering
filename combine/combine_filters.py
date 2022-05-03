@@ -55,7 +55,7 @@ class load_data():
         eskf_quat = np.stack(eskf_data[:,3]) # x,y,z,w
         return eskf_data, eskf_timestamp, eskf_position, eskf_velocity, eskf_quat
 
-    def load_ukf(self, dataset=1):
+    def load_ukf(self, dataset=2):
         """Get estimate data for the eskf"""
         ukf_data = np.load(os.path.join(self.data_path, "ukf_data" + str(dataset) + ".npy"), allow_pickle=True) # each state timestep, position, velocity, quaternion
         ukf_roll = ukf_data[0,:]
@@ -68,7 +68,7 @@ class load_data():
         _, gt_timestamp, _, _, _ = self.load_gt(dataset)
         return ukf_data, gt_timestamp ,ukf_quat
 
-    def load_gt(self, dataset=1):
+    def load_gt(self, dataset=2):
         """Get ground truth data for the specified dataset"""
         gt_path2 = self.gt_path + "/MH_0" + str(dataset) # specify the directory
         if dataset == 1 or dataset == 2:
@@ -119,7 +119,8 @@ if __name__ == "__main__":
     #     eskf_rpy[iter,:] = np.array([roll,pitch,yaw])
 
     # R = np.array([[1,0,0],[0,0,1],[0,-1,0]])
-    R = Rotation.from_quat(np.array([-0.153,-0.8273,-0.08215,0.5341])).as_matrix()
+    # R = Rotation.from_quat(np.array([-0.153,-0.8273,-0.08215,0.5341])).as_matrix()    # for MH_01
+    R = Rotation.from_quat(np.array([-0.12904,-0.810903,-0.06203,0.567395])).as_matrix()    # for MH_02
     # R = np.eye(3)
     # R = Rotation.from_quat(np.array([])).as_matrix()
     # R = np.array([[0,0,1],[-1,0,0],[0,-1,0]])
@@ -130,7 +131,8 @@ if __name__ == "__main__":
 
     
     ukf_rpy = Rotation.from_quat(ukf_quat).as_euler('XYZ', degrees=True)
-    R = Rotation.from_quat(np.array([-0.153,-0.8273,-0.08215,0.5341])).as_matrix()
+    # R = Rotation.from_quat(np.array([-0.153,-0.8273,-0.08215,0.5341])).as_matrix()  # MH_01
+    R = Rotation.from_quat(np.array([-0.12904,-0.810903,-0.06203,0.567395])).as_matrix()    # for MH_02
     # R = Rotation.from_quat(np.array([0,0,0,1])).as_matrix()
 
     mat = Rotation.from_quat(ukf_quat).as_matrix()
