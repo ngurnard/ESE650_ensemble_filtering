@@ -34,7 +34,7 @@ def main(dataset, ensemble):
     ukf_data, ukf_timestamp, ukf_rpy = load_stuff.load_ukf(dataset)
     gt_data, gt_timestamp, gt_position, gt_velocity, gt_rpy = load_stuff.load_gt(dataset)
     eskf_data, eskf_timestamp, eskf_position, eskf_velocity, eskf_rpy = load_stuff.load_eskf(dataset)
-    # msckf_data, msckf_timestamp, msckf_position, msckf_velocity, msckf_rpy = load_stuff.load_msckf(dataset)
+    msckf_data, msckf_timestamp, msckf_position, msckf_velocity, msckf_rpy = load_stuff.load_msckf(dataset)
     complementary_data, complementary_timestamp, complementary_rpy = load_stuff.load_complementary(dataset)
     
     ## Perceptron Code -----------------------------------------------------------------

@@ -16,10 +16,17 @@ class x_net(torch.nn.Module):
     """
     def __init__(self):
         super(x_net, self).__init__()
-        self.fc1 = torch.nn.Linear(in_features=3, out_features=1) # this is a fully connected layer (single layer perceptron)
+        # self.fc1 = torch.nn.Linear(in_features=3, out_features=1) # this is a fully connected layer (single layer perceptron)
+
+        self.model = torch.nn.Sequential(
+        torch.nn.Linear(3, 5),
+        torch.nn.ReLU(True),
+        torch.nn.Linear(5, 1),
+        )
 
     def forward(self, x):
-        x = self.fc1(x) # this is the forward pass for the fully connected layer
+        # x = self.fc1(x) # this is the forward pass for the fully connected layer
+        x = self.model(x) # this is the forward pass for the fully connected layer
         return x
 
 class y_net(torch.nn.Module):
@@ -28,10 +35,17 @@ class y_net(torch.nn.Module):
     """
     def __init__(self):
         super(y_net, self).__init__()
-        self.fc1 = torch.nn.Linear(in_features=3, out_features=1) # this is a fully connected layer (single layer perceptron)
+        # self.fc1 = torch.nn.Linear(in_features=3, out_features=1) # this is a fully connected layer (single layer perceptron)
+        
+        self.model = torch.nn.Sequential(
+        torch.nn.Linear(3, 5),
+        torch.nn.ReLU(True),
+        torch.nn.Linear(5, 1),
+        )
 
     def forward(self, x):
-        x = self.fc1(x) # this is the forward pass for the fully connected layer
+        # x = self.fc1(x) # this is the forward pass for the fully connected layer
+        x = self.model(x) # this is the forward pass for the fully connected layer
         return x
 
 class z_net(torch.nn.Module):
@@ -40,16 +54,28 @@ class z_net(torch.nn.Module):
     """
     def __init__(self):
         super(z_net, self).__init__()
-        self.fc1 = torch.nn.Linear(in_features=3, out_features=1) # this is a fully connected layer (single layer perceptron)
+        # self.fc1 = torch.nn.Linear(in_features=3, out_features=1) # this is a fully connected layer (single layer perceptron)
+        
+        self.model = torch.nn.Sequential(
+        torch.nn.Linear(3, 5),
+        torch.nn.ReLU(True),
+        torch.nn.Linear(5, 1),
+        )
 
     def forward(self, x):
-        x = self.fc1(x) # this is the forward pass for the fully connected layer
+        # x = self.fc1(x) # this is the forward pass for the fully connected layer
+        x = self.model(x) # this is the forward pass for the fully connected layer
         return x
+
+def loss_func(output, target):
+    a = (output - target)**2
+    
+    return torch.mean(a)
 
 def orientation_perceptron(x_arr, y_arr, z_arr):
 
-    epochs = 3500
-    criterion = torch.nn.CosineEmbeddingLoss()
+    epochs = 200
+    # criterion = torch.nn.CosineEmbeddingLoss()
     batch_size = 16
 
     ## ROLL --------------------------------------------
@@ -78,7 +104,8 @@ def orientation_perceptron(x_arr, y_arr, z_arr):
             # forward path
             x_predicted = x_model(image.float())
             target = torch.ones(x_predicted.size(0))
-            loss = criterion(x_predicted, label.float(), target)
+            # loss = criterion(x_predicted, label.float(), target)
+            loss = loss_func(x_predicted, label.float())
             # if(itr == 0):
             #     print(f'epoch: {epoch+1}, batch: {itr+1}, loss: {loss.item():.4f}')
             running_loss += loss.item()
@@ -97,7 +124,8 @@ def orientation_perceptron(x_arr, y_arr, z_arr):
         for itr, (image, label) in enumerate(x_testloader):
             x_predicted = x_model(image.float())
             target = torch.ones(x_predicted.size(0))
-            loss = criterion(x_predicted, label.float(), target)
+            # loss = criterion(x_predicted, label.float(), target)
+            loss = loss_func(x_predicted, label.float())
             x_ls.append(label.item())
             x_pred.append(x_predicted.item())
         print(f'MSE loss of test is {loss:.4f}')
@@ -141,7 +169,8 @@ def orientation_perceptron(x_arr, y_arr, z_arr):
             # forward path
             y_predicted = y_model(image.float())
             target = torch.ones(y_predicted.size(0))
-            loss = criterion(y_predicted, label.float(), target)
+            # loss = criterion(y_predicted, label.float(), target)
+            loss = loss_func(y_predicted, label.float())
             # if(itr == 0):
             #     print(f'epoch: {epoch+1}, batch: {itr+1}, loss: {loss.item():.4f}')
             running_loss += loss.item()
@@ -160,7 +189,8 @@ def orientation_perceptron(x_arr, y_arr, z_arr):
         for itr, (image, label) in enumerate(y_testloader):
             y_predicted = y_model(image.float())
             target = torch.ones(y_predicted.size(0))
-            loss = criterion(y_predicted, label.float(), target)
+            # loss = criterion(y_predicted, label.float(), target)
+            loss = loss_func(y_predicted, label.float())
             y_ls.append(label.item())
             y_pred.append(y_predicted.item())
         print(f'MSE loss of test is {loss:.4f}')
@@ -203,7 +233,8 @@ def orientation_perceptron(x_arr, y_arr, z_arr):
             # forward path
             z_predicted = z_model(image.float())
             target = torch.ones(z_predicted.size(0))
-            loss = criterion(z_predicted, label.float(), target)
+            # loss = criterion(z_predicted, label.float(), target)
+            loss = loss_func(z_predicted, label.float())
             # if(itr == 0):
             #     print(f'epoch: {epoch+1}, batch: {itr+1}, loss: {loss.item():.4f}')
             running_loss += loss.item()
@@ -222,7 +253,8 @@ def orientation_perceptron(x_arr, y_arr, z_arr):
         for itr, (image, label) in enumerate(z_testloader):
             z_predicted = z_model(image.float())
             target = torch.ones(z_predicted.size(0))
-            loss = criterion(z_predicted, label.float(), target)
+            # loss = criterion(z_predicted, label.float(), target)
+            loss = loss_func(z_predicted, label.float())
             z_ls.append(label.item())
             z_pred.append(z_predicted.item())
         print(f'MSE loss of test is {loss:.4f}')
