@@ -98,9 +98,12 @@ class z_tron(torch.nn.Module):
         return x
 
 def loss_func(output, target):
-    ## Custom Loss ##
-    diff = output - target
-    diff = (diff + 180) % 360 - 180
+    # MSE Loss ##
+    diff = (output - target)**2
+
+    # ## Custom Loss ##
+    # diff = output - target
+    # diff = (diff + 180) % 360 - 180
     
     return torch.mean(torch.abs(diff))
 
