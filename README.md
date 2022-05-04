@@ -22,7 +22,17 @@ The data must be placed in the directory `./data/euroc_mav_dataset/`. The files 
 ## Runing the code
 There are 2 scripts to be run from the root: `train.py` and `test_and_plot.py`.
 These 2 scripts are the main part of the project.
-Running the flag --help will give instruction on how to run the code with the given datasets and which models to run.
+Running the flag --help will give instruction on how to run the code with the given datasets and which models to run. Example:
+
+`test_and_plot.py`:
+```
+python test_and_plot.py --dataset=3 --ensemble=False
+```
+
+`train.py`:
+```
+python train.py --dense=False
+```
 
 In order to generate the datasets to run the above scripts, you can run the filters individually. The files
 are already provided, but in case you want to run them on new datasets you must run the following:
