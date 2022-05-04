@@ -98,7 +98,6 @@ class z_tron(torch.nn.Module):
         return x
 
 def loss_func(output, target):
-
     ## Custom Loss ##
     diff = output - target
     diff = (diff + 180) % 360 - 180
