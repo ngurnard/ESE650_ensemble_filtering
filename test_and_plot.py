@@ -11,8 +11,8 @@ import os
 
 # Get user input if they want
 @click.command()
-@click.option('--dataset', default=1, help='specify the machine hall dataset number. Valid datasets in range [1,5]', type=int)
-@click.option('--ensemble', default=True, help='specify which model to use as a boolean: simple average (False) or perceptron (True)', type=bool)
+@click.option('--dataset', default=1, help='specify the machine hall dataset number. Valid datasets in range [1,5]. Default is 1', type=int)
+@click.option('--ensemble', default=True, help='specify which model to use as a boolean: simple average (False) or perceptron/NN (True). Default is True', type=bool)
 
 def main(dataset, ensemble):
     # Run python main.py --help to see how to provide command line arguments
@@ -183,50 +183,51 @@ def main(dataset, ensemble):
         msckf_loss_yaw = np.sqrt(np.mean((gt_rpy[match_idx_msckf][:, 2] - msckf_rpy[:,2])**2))
         print(f"ukf yaw loss: {ukf_loss_yaw}, eskf yaw loss: {eskf_loss_yaw}, complimentary yaw loss: {complementary_loss_yaw}, model output yaw loss: {new_loss_yaw}, msckf yaw loss: {msckf_loss_yaw}")
 
-        # Show all of the Plots
-        plt.show()
+        # Include the simple average to compare the ensemble with
+        ## Simple Averaging - All Filters
+        avg_rpy = np.zeros_like(eskf_rpy)
+        avg_rpy[:,0] = ((eskf_rpy[:, 0] + ukf_rpy[match_idx][:, 0] + complementary_rpy[match_idx][:, 0])/3)
+        avg_rpy[:,1] = ((eskf_rpy[:, 1] + ukf_rpy[match_idx][:, 1] + complementary_rpy[match_idx][:, 1])/3)
+        avg_rpy[:,2] = ((eskf_rpy[:, 2] + ukf_rpy[match_idx][:, 2] + complementary_rpy[match_idx][:, 2])/3)
 
-    ## PLOTTING CODE FOR DUBUGGING -------------------------------------------------------------------
-    if (match_timesteps == False and ensemble == False):
-        ### Plot the data as is
-        plt.figure(1)
-        plt.plot(msckf_position[:, 0], label="msckf x-pos estimate", color="r")
-        plt.plot(msckf_position[:, 1], label="msckf y-pos estimate", color="g")
-        plt.plot(msckf_position[:, 2], label="msckf z-pos estimate", color="b")
-        plt.xlabel("timestamp")
-        plt.ylabel("position in meters")
-        plt.title("MSCKF Position Estimate")
-        plt.legend()
-
-        plt.figure(2)
-        plt.plot(eskf_position[:, 0], label="eskf x-pos estimate", color="r")
-        plt.plot(eskf_position[:, 1], label="eskf y-pos estimate", color="g")
-        plt.plot(eskf_position[:, 2], label="eskf z-pos estimate", color="b")
-        plt.xlabel("timestamp")
-        plt.ylabel("position in meters")
-        plt.title("ESKF Position Estimate")
-        plt.legend()
-
-        plt.figure(3)
-        plt.plot(gt_position[:, 0] - gt_position[0,0], label="gt x-pos estimate", color="r")
-        plt.plot(gt_position[:, 1] - gt_position[0,1], label="gt y-pos estimate", color="g")
-        plt.plot(gt_position[:, 2] - gt_position[0,2], label="gt z-pos estimate", color="b")
-        plt.xlabel("timestamp")
-        plt.ylabel("position in meters")
-        plt.title("Ground Truth Estimate")
-        plt.legend()
+        avg_loss_roll = np.sqrt(np.mean((gt_rpy[match_idx][:, 0] - avg_rpy[:, 0])**2))
+        avg_loss_pitch = np.sqrt(np.mean((gt_rpy[match_idx][:, 1] - avg_rpy[:, 1])**2))
+        avg_loss_yaw = np.sqrt(np.mean((gt_rpy[match_idx][:, 2] - avg_rpy[:, 2])**2))
+        print(f"avg roll loss: {avg_loss_roll}, avg pitch loss: {avg_loss_pitch}, avg yaw loss: {avg_loss_yaw}")
 
         plt.figure(4)
-        plt.plot(gt_rpy[:, 0] - gt_rpy[0,0], label="gt x-pos estimate", color="r")
-        plt.plot(gt_rpy[:, 1] - gt_rpy[0,1], label="gt y-pos estimate", color="g")
-        plt.plot(gt_rpy[:, 2] - gt_rpy[0,2], label="gt z-pos estimate", color="b")
+        plt.rcParams['font.size'] = '30'
+        plt.plot(avg_rpy[:, 0], label="average roll estimate", linestyle='solid', color='r')
+        plt.plot(gt_rpy[match_idx][:, 0], label="gt roll", linestyle='dashed', color='k')
+        plt.plot(x_pred, label="network roll estimate", linestyle='solid', color='b')
         plt.xlabel("timestamp")
-        plt.ylabel("rpy in meters")
-        plt.title("Ground Truth Estimate")
+        plt.ylabel("roll estimate in degrees")
+        plt.title("Comparison of Simple Avg, Dense NN, and GT - Roll", pad=20)
         plt.legend()
+
+        plt.figure(5)
+        plt.rcParams['font.size'] = '30'
+        plt.plot(avg_rpy[:, 1], label="average pitch estimate", linestyle='solid', color='r')
+        plt.plot(gt_rpy[match_idx][:, 1], label="gt pitch", linestyle='dashed', color='k')
+        plt.plot(y_pred, label="network pitch estimate", linestyle='solid', color='b')
+        plt.xlabel("timestamp")
+        plt.ylabel("pitch estimate in degrees")
+        plt.title("Comparison of Simple Avg, Dense NN, and GT - Pitch", pad=20)
+        plt.legend()
+       
+        plt.figure(6)
+        plt.rcParams['font.size'] = '30'
+        plt.plot(avg_rpy[:, 2], label="average yaw estimate", linestyle='solid', color='r')
+        plt.plot(gt_rpy[match_idx][:, 2], label="gt yaw", linestyle='dashed', color='k')
+        plt.plot(z_pred, label="network yaw estimate", linestyle='solid', color='b')
+        plt.xlabel("timestamp")
+        plt.ylabel("yaw estimate in degrees")
+        plt.title("Comparison of Simple Avg, Dense NN, and GT - Yaw", pad=20)
+        plt.legend()
+        
         plt.show()
 
-    elif (match_timesteps == True and ensemble == False):
+    elif (ensemble == False):
         """
         This is to compare filters against the ground truth and also to see the simply average comparison
         """
@@ -240,58 +241,16 @@ def main(dataset, ensemble):
         gt_idx_eskf = []
         for i in range(len(eskf_timestamp)):
             gt_idx_eskf.append(np.argmin(np.abs(gt_timestamp - eskf_timestamp[i])))
-         # Ground Truth and Complementary
-        gt_idx_complementary = []
-        for i in range(len(complementary_timestamp)):
-            gt_idx_complementary.append(np.argmin(np.abs(gt_timestamp - complementary_timestamp[i])))
-        # Ground Truth with UKF
-        gt_idx_ukf = []
-        for i in range(len(ukf_timestamp)):
-            gt_idx_ukf.append(np.argmin(np.abs(gt_timestamp - ukf_timestamp[i])))
         # ESKF with MSCKF
-        match_idx = []
-        for i in range(len(msckf_timestamp)):
-            match_idx.append(np.argmin(np.abs(eskf_timestamp - msckf_timestamp[i])))
+        # match_idx = []
+        # for i in range(len(msckf_timestamp)):
+        #     match_idx.append(np.argmin(np.abs(eskf_timestamp - msckf_timestamp[i])))
         # Complementary with MSCKF ( this is orientation only)
-        match_idx2 = []
-        for i in range(len(msckf_timestamp)):
-            match_idx2.append(np.argmin(np.abs(complementary_timestamp - msckf_timestamp[i])))
-       
+        # match_idx2 = []
+        # for i in range(len(msckf_timestamp)):
+        #     match_idx2.append(np.argmin(np.abs(complementary_timestamp - msckf_timestamp[i])))
 
-        # Get the simple average of the MSCKF and ESKF output for when the timestamps match
-        # new_position = np.zeros_like(msckf_position)
-        # new_rpy = np.zeros_like(msckf_rpy)
-        # new_position[:,0] = ((msckf_position[:, 0] + eskf_position[match_idx][:, 0])/2).reshape(-1,) # divide by 2 for the simple average
-        # new_position[:,1] = ((msckf_position[:, 1] + eskf_position[match_idx][:, 1])/2).reshape(-1,)
-        # new_position[:,2] = ((msckf_position[:, 2] + eskf_position[match_idx][:, 2])/2).reshape(-1,)
-        # new_rpy[:,0] = ((msckf_rpy[:, 0] + eskf_rpy[match_idx][:, 0])/2)
-        # new_rpy[:,1] = ((msckf_rpy[:, 1] + eskf_rpy[match_idx][:, 1])/2)
-        # new_rpy[:,2] = ((msckf_rpy[:, 2] + eskf_rpy[match_idx][:, 2])/2)
-        # plt.figure(1)
-        # plt.plot(msckf_position[:, 0], label="msckf x-pos estimate")
-        # plt.plot(msckf_position[:, 1], label="msckf y-pos estimate")
-        # plt.plot(msckf_position[:, 2], label="msckf z-pos estimate")
-        # plt.plot(gt_position[gt_idx_msckf][:, 0] - gt_position[gt_idx_msckf][0,0], label="gt x-pos", linestyle='dashdot')
-        # plt.plot(gt_position[gt_idx_msckf][:, 1] - gt_position[gt_idx_msckf][0,1], label="gt y-pos", linestyle='dashdot')
-        # plt.plot(gt_position[gt_idx_msckf][:, 2] - gt_position[gt_idx_msckf][0,2], label="gt z-pos", linestyle='dashdot', color='k')
-        # plt.xlabel("timestamp")
-        # plt.ylabel("position in meters")
-        # plt.title("MSCKF Position Estimate")
-        # plt.legend()
-
-        # plt.figure(2)
-        # plt.plot(msckf_velocity[:, 0], label="msckf x-vel estimate")
-        # plt.plot(msckf_velocity[:, 1], label="msckf y-vel estimate")
-        # plt.plot(msckf_velocity[:, 2], label="msckf z-vel estimate")
-        # plt.plot(gt_velocity[gt_idx_msckf][:, 0] - gt_velocity[gt_idx_msckf][0,0], label="gt x-vel", linestyle='dashdot')
-        # plt.plot(gt_velocity[gt_idx_msckf][:, 1] - gt_velocity[gt_idx_msckf][0,1], label="gt y-vel", linestyle='dashdot')
-        # plt.plot(gt_velocity[gt_idx_msckf][:, 2] - gt_velocity[gt_idx_msckf][0,2], label="gt z-vel", linestyle='dashdot', color='k')
-        # plt.xlabel("timestamp")
-        # plt.ylabel("velocity in m/s")
-        # plt.title("MSCKF Velocity Estimate")
-        # plt.legend()
-
-        plt.figure(3)
+        plt.figure(1)
         plt.plot(msckf_rpy[:, 0], label="msckf roll estimate")
         plt.plot(msckf_rpy[:, 1], label="msckf pitch estimate")
         plt.plot(msckf_rpy[:, 2], label="msckf yaw estimate")
@@ -303,31 +262,7 @@ def main(dataset, ensemble):
         plt.title("MSCKF Orientation Estimate")
         plt.legend()
 
-        # plt.figure(4)
-        # plt.plot(eskf_position[:, 0], label="eskf x-pos estimate")
-        # plt.plot(eskf_position[:, 1], label="eskf y-pos estimate")
-        # plt.plot(eskf_position[:, 2], label="eskf z-pos estimate")
-        # plt.plot(gt_position[gt_idx_eskf][:, 0], label="gt x-pos", linestyle='dashdot')
-        # plt.plot(gt_position[gt_idx_eskf][:, 1], label="gt y-pos", linestyle='dashdot')
-        # plt.plot(gt_position[gt_idx_eskf][:, 2], label="gt z-pos", linestyle='dashdot', color='k')
-        # plt.xlabel("timestamp")
-        # plt.ylabel("position in meters")
-        # plt.title("ESKF Position Estimate")
-        # plt.legend()
-
-        # plt.figure(5)
-        # plt.plot(eskf_velocity[:, 0], label="eskf x-vel estimate")
-        # plt.plot(eskf_velocity[:, 1], label="eskf y-vel estimate")
-        # plt.plot(eskf_velocity[:, 2], label="eskf z-vel estimate")
-        # plt.plot(gt_velocity[gt_idx_eskf][:, 0] - gt_velocity[gt_idx_eskf][0,0], label="gt x-vel", linestyle='dashdot')
-        # plt.plot(gt_velocity[gt_idx_eskf][:, 1] - gt_velocity[gt_idx_eskf][0,1], label="gt y-vel", linestyle='dashdot')
-        # plt.plot(gt_velocity[gt_idx_eskf][:, 2] - gt_velocity[gt_idx_eskf][0,2], label="gt z-vel", linestyle='dashdot', color='k')
-        # plt.xlabel("timestamp")
-        # plt.ylabel("velocity in m/s")
-        # plt.title("eskf Velocity Estimate")
-        # plt.legend()
-
-        plt.figure(6)
+        plt.figure(2)
         plt.plot(eskf_rpy[:, 0], label="eskf roll estimate")
         plt.plot(eskf_rpy[:, 1], label="eskf pitch estimate")
         plt.plot(eskf_rpy[:, 2], label="eskf yaw estimate")
@@ -339,7 +274,7 @@ def main(dataset, ensemble):
         plt.title("ESKF Orientation Estimate")
         plt.legend()
 
-        plt.figure(7)
+        plt.figure(3)
         plt.plot(ukf_rpy[:, 0], label="ukf roll estimate")
         plt.plot(ukf_rpy[:, 1], label="ukf pitch estimate")
         plt.plot(ukf_rpy[:, 2], label="ukf yaw estimate")
@@ -351,7 +286,7 @@ def main(dataset, ensemble):
         plt.title("UKF Orientation Estimate")
         plt.legend()
 
-        plt.figure(8)
+        plt.figure(4)
         plt.plot(complementary_rpy[:, 0], label="complementary roll estimate")
         plt.plot(complementary_rpy[:, 1], label="complementary pitch estimate")
         plt.plot(complementary_rpy[:, 2], label="complementary yaw estimate")
@@ -363,35 +298,18 @@ def main(dataset, ensemble):
         plt.title("Complementary Orientation Estimate")
         plt.legend()
 
-        ## Simple Average Plot -- presentaion
-        # plt.figure(7)
-        # plt.plot(new_position[:, 1], label="average y-pos estimate", linestyle='dashed', color='b')
-        # plt.plot(eskf_position[match_idx][:, 1], label="eskf (baseline) y-pos", linestyle='solid', color='g')
-        # plt.plot(gt_position[gt_idx_msckf][:, 1], label="gt y-pos", linestyle='dashdot', color='k')
-        # plt.plot(msckf_position[:, 1], label="msckf y-pos estimate", linestyle='solid', color='r')
-        # plt.xlabel("timestamp")
-        # plt.ylabel("y position in meters")
-        # plt.title("Ensemble filter estimates for y position - Simple Average")
-        # plt.legend()
-        # plt.figure(8)
-        # plt.plot(complementary_rpy[:,0], label = 'comp_yaw')
-        # plt.plot(complementary_rpy[:,1], label = 'comp_pitch')
-        # plt.plot(complementary_rpy[:,2], label = 'comp_roll')
-        # plt.plot(gt_rpy[gt_idx_complementary][:, 0], label="gt_yaw", linestyle='dashdot')
-        # plt.plot(gt_rpy[gt_idx_complementary][:, 1], label="gt_pitch", linestyle='dashdot')
-        # plt.plot(gt_rpy[gt_idx_complementary][:, 2], label="gt_roll", linestyle='dashdot', color='k')
-        # plt.xlabel("timestamp")
-        # plt.ylabel("angle in degrees")
-        # plt.title("Complementary Orientation Estimate")
-        # plt.legend()
-
         ## Simple Averaging - All Filters
         avg_rpy = np.zeros_like(eskf_rpy)
         avg_rpy[:,0] = ((eskf_rpy[:, 0] + ukf_rpy[gt_idx_eskf][:, 0] + complementary_rpy[gt_idx_eskf][:, 0])/3)
         avg_rpy[:,1] = ((eskf_rpy[:, 1] + ukf_rpy[gt_idx_eskf][:, 1] + complementary_rpy[gt_idx_eskf][:, 1])/3)
         avg_rpy[:,2] = ((eskf_rpy[:, 2] + ukf_rpy[gt_idx_eskf][:, 2] + complementary_rpy[gt_idx_eskf][:, 2])/3)
 
-        plt.figure(9)
+        avg_loss_roll = np.sqrt(np.mean((gt_rpy[gt_idx_eskf][:, 0] - avg_rpy[:, 0])**2))
+        avg_loss_pitch = np.sqrt(np.mean((gt_rpy[gt_idx_eskf][:, 1] - avg_rpy[:, 1])**2))
+        avg_loss_yaw = np.sqrt(np.mean((gt_rpy[gt_idx_eskf][:, 2] - avg_rpy[:, 2])**2))
+        print(f"avg roll loss: {avg_loss_roll}, avg pitch loss: {avg_loss_pitch}, avg yaw loss: {avg_loss_yaw}")
+
+        plt.figure(5)
         plt.plot(avg_rpy[:, 0], label="average roll estimate", linestyle='dashed', color='b')
         plt.plot(eskf_rpy[:, 0], label="eskf roll estimate", linestyle='solid', color='g')
         plt.plot(gt_rpy[gt_idx_eskf][:, 0], label="gt roll", linestyle='dashdot', color='k')
@@ -402,13 +320,7 @@ def main(dataset, ensemble):
         plt.title("Ensemble Filter Estimates for Roll - Simple Average")
         plt.legend()
 
-        avg_loss_roll = np.sqrt(np.mean((gt_rpy[gt_idx_eskf][:, 0] - avg_rpy[:, 0])**2))
-        avg_loss_pitch = np.sqrt(np.mean((gt_rpy[gt_idx_eskf][:, 1] - avg_rpy[:, 1])**2))
-        avg_loss_yaw = np.sqrt(np.mean((gt_rpy[gt_idx_eskf][:, 2] - avg_rpy[:, 2])**2))
-
-        print(f"avg roll loss: {avg_loss_roll}, avg pitch loss: {avg_loss_pitch}, avg yaw loss: {avg_loss_yaw}")
-
-        plt.figure(10)
+        plt.figure(6)
         plt.plot(avg_rpy[:, 1], label="average pitch estimate", linestyle='dashed', color='b')
         plt.plot(eskf_rpy[:, 1], label="eskf pitch", linestyle='solid', color='g')
         plt.plot(gt_rpy[gt_idx_eskf][:, 1], label="gt pitch", linestyle='dashdot', color='k')
@@ -424,20 +336,20 @@ def main(dataset, ensemble):
         avg_loss_pitch = np.sum(np.abs((gt_rpy[gt_idx_eskf][:, 1] - avg_rpy[:, 1])))
         print(f"ukf pitch loss: {ukf_loss_pitch}, eskf pitch loss: {eskf_loss_pitch}, complimentary pitch loss: {complementary_loss_pitch}, model output pitch loss: {avg_loss_pitch}")
 
-        plt.figure(11)
-        plt.plot(avg_rpy[:, 1], label="average yaw estimate", linestyle='dashed', color='b')
-        plt.plot(eskf_rpy[:, 1], label="eskf yaw", linestyle='solid', color='g')
-        plt.plot(gt_rpy[gt_idx_eskf][:, 1], label="gt yaw", linestyle='dashdot', color='k')
-        plt.plot(ukf_rpy[gt_idx_eskf][:, 1], label="ukf yaw", linestyle='dashdot', color='m')
-        plt.plot(complementary_rpy[gt_idx_eskf][:, 1], label="complementary yaw estimate", linestyle='solid', color='r')
+        plt.figure(7)
+        plt.plot(avg_rpy[:, 2], label="average yaw estimate", linestyle='dashed', color='b')
+        plt.plot(eskf_rpy[:, 2], label="eskf yaw", linestyle='solid', color='g')
+        plt.plot(gt_rpy[gt_idx_eskf][:, 2], label="gt yaw", linestyle='dashdot', color='k')
+        plt.plot(ukf_rpy[gt_idx_eskf][:, 2], label="ukf yaw", linestyle='dashdot', color='m')
+        plt.plot(complementary_rpy[gt_idx_eskf][:, 2], label="complementary yaw estimate", linestyle='solid', color='r')
         plt.xlabel("timestamp")
         plt.ylabel("yaw estimate in degrees")
         plt.title("Ensemble Filter Estimates for Yaw - Simple Average")
         plt.legend()
-        ukf_loss_yaw = np.sum(np.abs((gt_rpy[gt_idx_eskf][:, 1] - ukf_rpy[gt_idx_eskf][:, 1])))
-        eskf_loss_yaw = np.sum(np.abs((gt_rpy[gt_idx_eskf][:, 1] - eskf_rpy[:, 1])))
-        complementary_loss_yaw = np.sum(np.abs((gt_rpy[gt_idx_eskf][:, 1] - complementary_rpy[gt_idx_eskf][:, 1])))
-        avg_loss_yaw = np.sum(np.abs((gt_rpy[gt_idx_eskf][:, 1] - avg_rpy[:, 1])))
+        ukf_loss_yaw = np.sum(np.abs((gt_rpy[gt_idx_eskf][:, 2] - ukf_rpy[gt_idx_eskf][:, 2])))
+        eskf_loss_yaw = np.sum(np.abs((gt_rpy[gt_idx_eskf][:, 2] - eskf_rpy[:, 2])))
+        complementary_loss_yaw = np.sum(np.abs((gt_rpy[gt_idx_eskf][:, 2] - complementary_rpy[gt_idx_eskf][:, 2])))
+        avg_loss_yaw = np.sum(np.abs((gt_rpy[gt_idx_eskf][:, 2] - avg_rpy[:, 2])))
         print(f"ukf yaw loss: {ukf_loss_yaw}, eskf yaw loss: {eskf_loss_yaw}, complimentary yaw loss: {complementary_loss_yaw}, model output yaw loss: {avg_loss_yaw}")
 
         plt.show()

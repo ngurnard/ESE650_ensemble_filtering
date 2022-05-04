@@ -12,11 +12,10 @@ import pdb
 ## Define the classes for each of the perceptrons
 class x_net(torch.nn.Module):
     """
-    A single layer perceptron for x position
+    A dense neural net for roll
     """
     def __init__(self):
         super(x_net, self).__init__()
-        # self.fc1 = torch.nn.Linear(in_features=3, out_features=1) # this is a fully connected layer (single layer perceptron)
 
         self.model = torch.nn.Sequential(
         torch.nn.Linear(3, 5),
@@ -25,17 +24,27 @@ class x_net(torch.nn.Module):
         )
 
     def forward(self, x):
-        # x = self.fc1(x) # this is the forward pass for the fully connected layer
         x = self.model(x) # this is the forward pass for the fully connected layer
+        return x
+
+class x_tron(torch.nn.Module):
+    """
+    A single layer perceptron for roll
+    """
+    def __init__(self):
+        super(x_tron, self).__init__()
+        self.fc1 = torch.nn.Linear(in_features=3, out_features=1) # this is a fully connected layer (single layer perceptron)
+
+    def forward(self, x):
+        x = self.fc1(x) # this is the forward pass for the fully connected layer
         return x
 
 class y_net(torch.nn.Module):
     """
-    A single layer perceptron for x position
+    A dense neural net for pitch
     """
     def __init__(self):
         super(y_net, self).__init__()
-        # self.fc1 = torch.nn.Linear(in_features=3, out_features=1) # this is a fully connected layer (single layer perceptron)
         
         self.model = torch.nn.Sequential(
         torch.nn.Linear(3, 5),
@@ -44,17 +53,27 @@ class y_net(torch.nn.Module):
         )
 
     def forward(self, x):
-        # x = self.fc1(x) # this is the forward pass for the fully connected layer
         x = self.model(x) # this is the forward pass for the fully connected layer
+        return x
+
+class y_tron(torch.nn.Module):
+    """
+    A single layer perceptron for pitch
+    """
+    def __init__(self):
+        super(y_tron, self).__init__()
+        self.fc1 = torch.nn.Linear(in_features=3, out_features=1) # this is a fully connected layer (single layer perceptron)
+
+    def forward(self, x):
+        x = self.fc1(x) # this is the forward pass for the fully connected layer
         return x
 
 class z_net(torch.nn.Module):
     """
-    A single layer perceptron for x position
+    A dense neural net for yaw
     """
     def __init__(self):
         super(z_net, self).__init__()
-        # self.fc1 = torch.nn.Linear(in_features=3, out_features=1) # this is a fully connected layer (single layer perceptron)
         
         self.model = torch.nn.Sequential(
         torch.nn.Linear(3, 5),
@@ -63,13 +82,22 @@ class z_net(torch.nn.Module):
         )
 
     def forward(self, x):
-        # x = self.fc1(x) # this is the forward pass for the fully connected layer
         x = self.model(x) # this is the forward pass for the fully connected layer
         return x
 
+class z_tron(torch.nn.Module):
+    """
+    A single layer perceptron for yaw
+    """
+    def __init__(self):
+        super(z_tron, self).__init__()
+        self.fc1 = torch.nn.Linear(in_features=3, out_features=1) # this is a fully connected layer (single layer perceptron)
+
+    def forward(self, x):
+        x = self.fc1(x) # this is the forward pass for the fully connected layer
+        return x
+
 def loss_func(output, target):
-    ## MSE Loss ##
-    # a = (output - target)**2
 
     ## Custom Loss ##
     diff = output - target
@@ -77,10 +105,9 @@ def loss_func(output, target):
     
     return torch.mean(torch.abs(diff))
 
-def orientation_perceptron(x_arr, y_arr, z_arr):
+def orientation_perceptron(x_arr, y_arr, z_arr, dense=True):
 
-    epochs = 200
-    # criterion = torch.nn.CosineEmbeddingLoss()
+    epochs = 225
     batch_size = 16
 
     ## ROLL --------------------------------------------
@@ -96,7 +123,10 @@ def orientation_perceptron(x_arr, y_arr, z_arr):
     x_trainloader = torch.utils.data.DataLoader(train_tds, batch_size=batch_size, shuffle=False)
     x_testloader = torch.utils.data.DataLoader(test_tds, shuffle=False)
 
-    x_model = x_net()
+    if (dense == True):
+        x_model = x_net()
+    else:
+        x_model = x_tron()
     optimizer = torch.optim.Adam(x_model.parameters(), lr=1e-2, weight_decay=1e-4) 
     train_mse = []
     # training iterations
@@ -161,7 +191,10 @@ def orientation_perceptron(x_arr, y_arr, z_arr):
     y_trainloader = torch.utils.data.DataLoader(train_tds, batch_size=batch_size, shuffle=False)
     y_testloader = torch.utils.data.DataLoader(test_tds, shuffle=False)
 
-    y_model = y_net()
+    if (dense == True):
+        y_model = y_net()
+    else:
+        y_model = y_tron()
     optimizer = torch.optim.Adam(y_model.parameters(), lr=1e-2, weight_decay=1e-4) 
     train_mse = []
     # training iterations
@@ -225,7 +258,10 @@ def orientation_perceptron(x_arr, y_arr, z_arr):
     z_trainloader = torch.utils.data.DataLoader(train_tds, batch_size=batch_size, shuffle=False)
     z_testloader = torch.utils.data.DataLoader(test_tds, shuffle=False)
 
-    z_model = z_net()
+    if (dense == True):
+        z_model = z_net()
+    else:
+        z_model = z_tron()
     optimizer = torch.optim.Adam(z_model.parameters(), lr=5e-3, weight_decay=1e-4) 
     train_mse = []
     # training iterations
@@ -281,8 +317,9 @@ def orientation_perceptron(x_arr, y_arr, z_arr):
 @click.option('--dataset1', default=1, help='specify the machine hall dataset number to train on. Must be unique from other datasets. Valid datasets in range [1,5]', type=int)
 @click.option('--dataset2', default=3, help='specify the machine hall dataset number to train on. Must be unique from other datasets. Valid datasets in range [1,5]', type=int)
 @click.option('--dataset3', default=5, help='specify the machine hall dataset number to train on. Must be unique from other datasets. Valid datasets in range [1,5]', type=int)
+@click.option('--dense', default=True, help='specify whether to run a dense NN (True), or a perceptron (False). Default set to True.', type=bool)
 
-def main(dataset1, dataset2, dataset3):
+def main(dataset1, dataset2, dataset3, dense):
 
     # Run python main.py --help to see how to provide command line arguments
     # Check if the user input makes sense
@@ -294,6 +331,9 @@ def main(dataset1, dataset2, dataset3):
         raise ValueError('Unknown argument --data %s'%dataset3)
     if (dataset1 == dataset2 or dataset2 == dataset3 or dataset1 == dataset3):
         raise ValueError('Datasets not unique')
+    if (dense not in [True, False]):
+        raise ValueError('Please enter a boolean for the dense flag')
+
     ### Initlialize loading the data object
     load_stuff = load_data(path_euroc=os.getcwd() + "/data/euroc_mav_dataset", path_estimate=os.getcwd() + "/data/filter_outputs") # initilize the load_data object
 
@@ -359,7 +399,7 @@ def main(dataset1, dataset2, dataset3):
 
     # Pass it into the perceptron!
     # pos_perceptron(x_pos_array, y_pos_array, z_pos_array)
-    orientation_perceptron(x_or_array, y_or_array, z_or_array) # UNCOMMENT IN ORDER TO TRAIN THE PERCEPTRON
+    orientation_perceptron(x_or_array, y_or_array, z_or_array, dense) # UNCOMMENT IN ORDER TO TRAIN THE PERCEPTRON
 
 if __name__ == "__main__":
     print("\nRun python main.py --help to see how to provide command line arguments\n\n")
