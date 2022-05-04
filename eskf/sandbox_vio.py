@@ -9,6 +9,7 @@ from vio import *
 from numpy.linalg import norm
 import pdb
 import time
+import os
 # %% Import IMU dataset
 #  CSV imu file
 time_start = time.time()
@@ -17,7 +18,7 @@ time_start = time.time()
 # dirname = '../dataset/MH_02_easy/mav0/imu0/'
 # dirname = '../dataset/MH_03_medium/mav0/imu0/'
 # dirname = '../dataset/MH_04_difficult/mav0/imu0/'
-dirname = '../dataset/MH_05_difficult/mav0/imu0/'
+dirname = os.getcwd() + "/data/euroc_mav_dataset/MH_05_difficult/mav0/imu0/"
 
 
 imu0 = np.genfromtxt(dirname + 'data.csv', delimiter=',', dtype='float64', skip_header=1)
@@ -49,7 +50,7 @@ accelerometer_random_walk = imu_calib_data['accelerometer_random_walk']
 # main_data_dir = '../dataset/MH_02_easy/mav0/'
 # main_data_dir = '../dataset/MH_03_medium/mav0/'
 # main_data_dir = '../dataset/MH_04_difficult/mav0/'
-main_data_dir = '../dataset/MH_05_difficult/mav0/'
+main_data_dir = dirname[:-5]
 
 dataset = stereo.StereoDataSet(main_data_dir)
 

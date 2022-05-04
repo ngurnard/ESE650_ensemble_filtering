@@ -3,6 +3,7 @@ from scipy import io
 from quaternion import Quaternion
 import matplotlib.pyplot as plt
 import tqdm
+import os
 
 def estimate_rot():
     """
@@ -14,7 +15,7 @@ def estimate_rot():
     yaw - numpy array containing the mean estimate yaw angle for all time steps in dataset
     """
 
-    dirname = '/Users/aadit/Desktop/ESE650_ensemble_filtering/data/euroc_mav_dataset/MH_05_difficult/mav0/imu0/'
+    dirname = os.getcwd() + '/data/euroc_mav_dataset/MH_05_difficult/mav0/imu0/'
     imu0 = np.genfromtxt(dirname + 'data.csv', delimiter=',', dtype='float64', skip_header=1)
     imu_timestamp = imu0[:, 0]
     gyro = imu0[:, 1:4]

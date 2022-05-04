@@ -5,6 +5,7 @@ from scipy.spatial.transform import Rotation
 import matplotlib.pyplot as plt
 from complementary_filter import complementary_filter_update
 import pdb
+import os
 
 # %%  CSV imu file
 start = time.time()
@@ -12,7 +13,7 @@ start = time.time()
 # fname = '../dataset/MH_02_easy/mav0/imu0/data.csv'
 # fname = '../dataset/MH_03_medium/mav0/imu0/data.csv'
 # fname = '../dataset/MH_04_difficult/mav0/imu0/data.csv'
-fname = '../dataset/MH_05_difficult/mav0/imu0/data.csv'
+fname = os.getcwd() + "/data/euroc_mav_dataset/MH_05_difficult/mav0/imu0/data.csv"
 
 # %%
 imu0 = np.genfromtxt(fname, delimiter=',', dtype='float64', skip_header=1)
