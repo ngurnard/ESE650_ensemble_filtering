@@ -54,3 +54,10 @@ CF:
 python complimentary/sandbox_complementary_filter.py
 ```
 In order to run different datasets, change line 16 `fname` to point to the correct data
+
+## Contributions
+UKF - Aadit Patel
+ESKF - Pranav Shah
+CF - Nicholas Gurnard
+Ensemble - equal Contributions
+Report- equal Contributions
